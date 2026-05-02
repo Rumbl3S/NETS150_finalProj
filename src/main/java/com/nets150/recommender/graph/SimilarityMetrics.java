@@ -102,14 +102,20 @@ public final class SimilarityMetrics {
     ) {
         double g = jaccard(a.getGenres(), b.getGenres());
         double rat = ratingSimilarity(ratingsByMovie, a.getId(), b.getId(), minCommonUsersForCorrelation);
-        return 0.45 * g + 0.55 * rat;
+        return 0.40 * g + 0.60 * rat;
     }
+
+    /**
+     * Minimum edge weight so Dijkstra distances stay positive and comparable (avoids many exact 0.0 ties
+     * when similarity is ~1 on an edge from a seed).
+     */
+    public static final double MIN_EDGE_WEIGHT = 2e-4;
 
     /**
      * Non-negative edge weight for Dijkstra: dissimilar movies have larger weight.
      */
     public static double similarityToEdgeWeight(double similarity) {
         double s = Math.max(0.0, Math.min(1.0, similarity));
-        return 1.0 - s;
+        return Math.max(MIN_EDGE_WEIGHT, 1.0 - s);
     }
 }

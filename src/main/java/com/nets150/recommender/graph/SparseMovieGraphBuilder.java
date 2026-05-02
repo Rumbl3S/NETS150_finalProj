@@ -39,7 +39,8 @@ public final class SparseMovieGraphBuilder {
     }
 
     public static SparseMovieGraphBuilder movieLens20MDefault() {
-        return new SparseMovieGraphBuilder(2800, 160, 40, 2, 0.04, 0.055);
+        // Denser neighborhood + stricter overlap on ratings → stronger, more discriminative edges.
+        return new SparseMovieGraphBuilder(3200, 220, 55, 3, 0.04, 0.052);
     }
 
     public WeightedGraph build(

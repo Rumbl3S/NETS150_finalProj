@@ -30,20 +30,22 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * Interactive Swing UI with clearer sections: pick movies, run Dijkstra recommendations, explore BFS/DFS.
+ * Browse + persistent "Your picks" seed list (survives search/filter), Dijkstra recommendations, BFS/DFS.
  */
 public final class MovieRecommenderFrame extends JFrame {
     private final Path configDir;
     private RecommenderService service;
     private final DefaultListModel<Movie> listModel = new DefaultListModel<>();
     private final JList<Movie> movieList = new JList<>(listModel);
+    private final DefaultListModel<Movie> seedModel = new DefaultListModel<>();
+    private final JList<Movie> seedList = new JList<>(seedModel);
     private final JTextField filterField = new JTextField(22);
     private final JSpinner topKSpinner = new JSpinner(new SpinnerNumberModel(15, 1, 100, 1));
     private final JTextArea output = new JTextArea(18, 52);
@@ -56,9 +58,7 @@ public final class MovieRecommenderFrame extends JFrame {
         this.configDir = configDir;
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        movieList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        movieList.setVisibleRowCount(18);
-        movieList.setCellRenderer(new DefaultListCellRenderer() {
+        var cellRenderer = new DefaultListCellRenderer() {
             @Override
             public java.awt.Component getListCellRendererComponent(
                     javax.swing.JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus
@@ -69,16 +69,22 @@ public final class MovieRecommenderFrame extends JFrame {
                 }
                 return c;
             }
-        });
+        };
+        movieList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        movieList.setVisibleRowCount(14);
+        movieList.setCellRenderer(cellRenderer);
+        seedList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        seedList.setVisibleRowCount(6);
+        seedList.setCellRenderer(cellRenderer);
 
         JLabel headline = new JLabel("What should I watch?");
         headline.setFont(headline.getFont().deriveFont(Font.BOLD, 20f));
 
-        JLabel sub = new JLabel("<html><body style='width:420px'>"
-                + "<b>Step 1.</b> Search and select one or more movies you already like (Ctrl/Cmd-click for several).<br>"
-                + "<b>Step 2.</b> Use <b>Get recommendations</b> — the app runs <b>multi-source Dijkstra</b> on a weighted graph "
-                + "of similar movies (lower distance = closer).<br>"
-                + "<b>Step 3 (optional).</b> <b>BFS</b> / <b>DFS</b> show how the graph is traversed from the <u>first</u> selected movie."
+        JLabel sub = new JLabel("<html><body style='width:440px'>"
+                + "<b>1.</b> Search the list below, select one or more rows, click <b>Add to my picks</b> (repeat after new searches — picks are kept).<br>"
+                + "<b>2.</b> <b>Your picks</b> is what recommendations use. Remove or clear rows there if you change your mind.<br>"
+                + "<b>3.</b> <b>Get recommendations</b> runs multi-source Dijkstra (lower distance = closer in the graph; values use a small edge floor so ties are rare).<br>"
+                + "<b>4.</b> <b>BFS / DFS</b> start from the <u>first movie in Your picks</u> (or the browse list if picks are empty)."
                 + "</body></html>");
 
         JPanel leftHeader = new JPanel(new BorderLayout(0, 8));
@@ -94,16 +100,43 @@ public final class MovieRecommenderFrame extends JFrame {
         filterRow.add(applyFilter);
 
         JPanel listPanel = new JPanel(new BorderLayout(0, 6));
-        listPanel.setBorder(BorderFactory.createTitledBorder("Movie list"));
+        listPanel.setBorder(BorderFactory.createTitledBorder("Browse movies"));
         listPanel.add(filterRow, BorderLayout.NORTH);
         listPanel.add(new JScrollPane(movieList), BorderLayout.CENTER);
 
-        JLabel hint = new JLabel("<html><small style='color:#555'>Tip: pick 2–3 seeds that capture your taste.</small></html>");
-        JPanel left = new JPanel(new BorderLayout(0, 10));
-        left.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-        left.add(leftHeader, BorderLayout.NORTH);
-        left.add(listPanel, BorderLayout.CENTER);
-        left.add(hint, BorderLayout.SOUTH);
+        JPanel addRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JButton addPicks = new JButton("Add to my picks");
+        addPicks.setToolTipText("Append the current browse selection to Your picks (skips duplicates).");
+        addPicks.addActionListener(e -> addSelectionToSeeds());
+        addRow.add(addPicks);
+
+        JPanel pickActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JButton removePicks = new JButton("Remove selected");
+        removePicks.addActionListener(e -> removeSelectedSeeds());
+        JButton clearPicks = new JButton("Clear all");
+        clearPicks.addActionListener(e -> seedModel.clear());
+        pickActions.add(removePicks);
+        pickActions.add(clearPicks);
+
+        JPanel seedPanel = new JPanel(new BorderLayout(0, 4));
+        seedPanel.setBorder(BorderFactory.createTitledBorder("Your picks (seeds)"));
+        seedPanel.add(new JScrollPane(seedList), BorderLayout.CENTER);
+        seedPanel.add(pickActions, BorderLayout.SOUTH);
+
+        JPanel mid = new JPanel(new BorderLayout(0, 8));
+        mid.add(listPanel, BorderLayout.CENTER);
+        mid.add(addRow, BorderLayout.SOUTH);
+
+        JLabel hint = new JLabel("<html><small style='color:#555'>Searching only filters the browse list — it does not remove movies from Your picks.</small></html>");
+
+        JPanel leftColumn = new JPanel(new BorderLayout(0, 8));
+        leftColumn.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+        leftColumn.add(leftHeader, BorderLayout.NORTH);
+        JPanel stack = new JPanel(new BorderLayout(0, 6));
+        stack.add(mid, BorderLayout.CENTER);
+        stack.add(seedPanel, BorderLayout.SOUTH);
+        leftColumn.add(stack, BorderLayout.CENTER);
+        leftColumn.add(hint, BorderLayout.SOUTH);
 
         output.setEditable(false);
         output.setLineWrap(true);
@@ -118,17 +151,17 @@ public final class MovieRecommenderFrame extends JFrame {
         recRow.add(topKSpinner);
         JButton recommend = new JButton("Get recommendations");
         recommend.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_ROUND_RECT);
-        recommend.setToolTipText("Rank other movies by shortest-path distance in the similarity graph (Dijkstra, multi-source).");
+        recommend.setToolTipText("Rank movies by shortest-path distance from all titles in Your picks.");
         recommend.addActionListener(e -> runRecommendations());
         recRow.add(recommend);
 
         JPanel exploreRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         exploreRow.setBorder(BorderFactory.createTitledBorder("Graph traversal (class requirement)"));
         JButton bfs = new JButton("Show BFS order");
-        bfs.setToolTipText("Breadth-first visit order from the first selected movie.");
+        bfs.setToolTipText("BFS from the first movie in Your picks, or first browse selection if picks are empty.");
         bfs.addActionListener(e -> runBfs());
         JButton dfs = new JButton("Show DFS order");
-        dfs.setToolTipText("Depth-first preorder from the first selected movie.");
+        dfs.setToolTipText("DFS from the first movie in Your picks, or first browse selection if picks are empty.");
         dfs.addActionListener(e -> runDfs());
         exploreRow.add(bfs);
         exploreRow.add(dfs);
@@ -138,7 +171,7 @@ public final class MovieRecommenderFrame extends JFrame {
         actions.add(exploreRow, BorderLayout.CENTER);
 
         JButton reload = new JButton("Reload dataset & rebuild graph");
-        reload.setToolTipText("Ignores cache; re-reads CSVs and rebuilds edges (slow on MovieLens 20M).");
+        reload.setToolTipText("Rebuilds graph (delete cache first for a clean rebuild).");
         reload.addActionListener(e -> reloadFromDisk());
         JPanel reloadRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         reloadRow.add(reload);
@@ -153,8 +186,8 @@ public final class MovieRecommenderFrame extends JFrame {
         rightWrap.add(right, BorderLayout.CENTER);
         rightWrap.add(reloadRow, BorderLayout.SOUTH);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, rightWrap);
-        split.setResizeWeight(0.38);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, rightWrap);
+        split.setResizeWeight(0.40);
         split.setDividerSize(6);
         split.setContinuousLayout(true);
 
@@ -163,7 +196,7 @@ public final class MovieRecommenderFrame extends JFrame {
         root.add(split, BorderLayout.CENTER);
         setContentPane(root);
 
-        setPreferredSize(new Dimension(1080, 700));
+        setPreferredSize(new Dimension(1100, 720));
         pack();
         setLocationRelativeTo(null);
 
@@ -173,12 +206,12 @@ public final class MovieRecommenderFrame extends JFrame {
     }
 
     private void appendWelcome() {
-        String kind = service.isMovieLens20M() ? "MovieLens 20M (full Kaggle / GroupLens release)" : "small sample CSVs";
+        String kind = service.isMovieLens20M() ? "MovieLens 20M (Kaggle / GroupLens)" : "small sample CSVs";
         output.setText(
                 "Dataset: " + kind + "\n"
                         + "Folder: " + service.dataDirectory().toAbsolutePath() + "\n"
                         + "Config root: " + configDir.toAbsolutePath() + "\n\n"
-                        + "Select movies on the left, then click \"Get recommendations\".\n\n"
+                        + "Add several movies to **Your picks** (they stay when you search again), then click **Get recommendations**.\n\n"
         );
     }
 
@@ -193,10 +226,49 @@ public final class MovieRecommenderFrame extends JFrame {
         }
     }
 
+    private void addSelectionToSeeds() {
+        List<Movie> sel = movieList.getSelectedValuesList();
+        if (sel.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Select one or more movies in the browse list first.", "Nothing selected", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        HashSet<Integer> have = new HashSet<>();
+        for (int i = 0; i < seedModel.size(); i++) {
+            have.add(seedModel.get(i).getId());
+        }
+        int added = 0;
+        for (Movie m : sel) {
+            if (have.add(m.getId())) {
+                seedModel.addElement(m);
+                added++;
+            }
+        }
+        if (added == 0) {
+            JOptionPane.showMessageDialog(this, "Those movies are already in Your picks.", "No change", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void removeSelectedSeeds() {
+        List<Movie> sel = seedList.getSelectedValuesList();
+        if (sel.isEmpty()) {
+            return;
+        }
+        HashSet<Integer> remove = new HashSet<>();
+        for (Movie m : sel) {
+            remove.add(m.getId());
+        }
+        for (int i = seedModel.size() - 1; i >= 0; i--) {
+            if (remove.contains(seedModel.get(i).getId())) {
+                seedModel.remove(i);
+            }
+        }
+    }
+
     private void reloadFromDisk() {
         try {
             this.service = RecommenderService.load(configDir, false, s -> output.append(s + "\n"));
             this.fullList = service.allMovies();
+            seedModel.clear();
             applyFilter();
             appendWelcome();
             output.append("\nReload finished.\n\n");
@@ -206,30 +278,50 @@ public final class MovieRecommenderFrame extends JFrame {
         }
     }
 
-    private Set<Integer> selectedIds() {
-        return movieList.getSelectedValuesList().stream().map(Movie::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+    private Set<Integer> seedIdsOrdered() {
+        LinkedHashSet<Integer> ids = new LinkedHashSet<>();
+        for (int i = 0; i < seedModel.size(); i++) {
+            ids.add(seedModel.get(i).getId());
+        }
+        return ids;
+    }
+
+    private Movie firstTraversalStart() {
+        if (seedModel.size() > 0) {
+            return seedModel.get(0);
+        }
+        List<Movie> sel = movieList.getSelectedValuesList();
+        if (!sel.isEmpty()) {
+            return sel.get(0);
+        }
+        return null;
     }
 
     private void runRecommendations() {
-        Set<Integer> seeds = selectedIds();
+        Set<Integer> seeds = seedIdsOrdered();
         if (seeds.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Select at least one movie you like.", "Pick movies", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Add at least one movie to **Your picks** (use \"Add to my picks\").",
+                    "No seeds",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
             return;
         }
         int topK = ((Number) topKSpinner.getValue()).intValue();
         List<ShortestPathRecommender.ScoredMovie> recs = service.recommend(seeds, topK);
         StringBuilder sb = new StringBuilder();
         sb.append("── Recommendations (Dijkstra / shortest path) ──\n");
-        sb.append("You liked: ").append(describe(seeds)).append("\n\n");
-        sb.append(String.format(Locale.ROOT, "Top %d matches (lower distance = more similar in the graph):\n\n", recs.size()));
+        sb.append("Your picks: ").append(describe(seeds)).append("\n\n");
+        sb.append(String.format(Locale.ROOT, "Top %d (lower distance = closer; edge weights use a tiny minimum so values are rarely identical):\n\n", recs.size()));
         int rank = 1;
         for (ShortestPathRecommender.ScoredMovie sm : recs) {
             Movie m = service.movieById(sm.movieId());
             String title = m != null ? m.getTitle() : ("id " + sm.movieId());
-            sb.append(String.format(Locale.ROOT, "%3d.  %-70s  distance %6.4f%n", rank++, title, sm.distance()));
+            sb.append(String.format(Locale.ROOT, "%3d.  %-65s  distance %10.6f%n", rank++, title, sm.distance()));
         }
         if (recs.isEmpty()) {
-            sb.append("\nNo reachable movies from your selection in this graph. Try other seeds, or rebuild after changing data.\n");
+            sb.append("\nNo reachable movies from your picks in this graph.\n");
         }
         sb.append("\n");
         output.append(sb.toString());
@@ -246,29 +338,27 @@ public final class MovieRecommenderFrame extends JFrame {
     }
 
     private void runBfs() {
-        List<Movie> sel = movieList.getSelectedValuesList();
-        if (sel.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Select at least one movie. The first one is the start node.", "BFS", JOptionPane.INFORMATION_MESSAGE);
+        Movie start = firstTraversalStart();
+        if (start == null) {
+            JOptionPane.showMessageDialog(this, "Add a pick or select a movie in the browse list.", "BFS", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        int start = sel.get(0).getId();
-        List<Integer> order = service.bfsFrom(start, 50);
+        List<Integer> order = service.bfsFrom(start.getId(), 50);
         output.append("── BFS visit order ──\n");
-        output.append("Start: " + service.movieById(start).getTitle() + "\n");
+        output.append("Start: " + start.getTitle() + "\n");
         output.append(formatOrder(order) + "\n\n");
         output.setCaretPosition(output.getDocument().getLength());
     }
 
     private void runDfs() {
-        List<Movie> sel = movieList.getSelectedValuesList();
-        if (sel.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Select at least one movie. The first one is the start node.", "DFS", JOptionPane.INFORMATION_MESSAGE);
+        Movie start = firstTraversalStart();
+        if (start == null) {
+            JOptionPane.showMessageDialog(this, "Add a pick or select a movie in the browse list.", "DFS", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        int start = sel.get(0).getId();
-        List<Integer> order = service.dfsFrom(start, 50);
+        List<Integer> order = service.dfsFrom(start.getId(), 50);
         output.append("── DFS preorder ──\n");
-        output.append("Start: " + service.movieById(start).getTitle() + "\n");
+        output.append("Start: " + start.getTitle() + "\n");
         output.append(formatOrder(order) + "\n\n");
         output.setCaretPosition(output.getDocument().getLength());
     }

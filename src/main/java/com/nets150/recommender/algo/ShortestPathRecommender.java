@@ -34,10 +34,8 @@ public final class ShortestPathRecommender {
             if (!graph.containsNode(s)) {
                 continue;
             }
-            if (!dist.containsKey(s) || dist.get(s) > 0) {
-                dist.put(s, 0.0);
-                pq.add(new NodeDist(s, 0.0));
-            }
+            dist.put(s, 0.0);
+            pq.add(new NodeDist(s, 0.0));
         }
         while (!pq.isEmpty()) {
             NodeDist cur = pq.poll();
@@ -60,7 +58,7 @@ public final class ShortestPathRecommender {
             }
             scored.add(new ScoredMovie(e.getKey(), e.getValue()));
         }
-        scored.sort(Comparator.comparingDouble(ScoredMovie::distance));
+        scored.sort(Comparator.comparingDouble(ScoredMovie::distance).thenComparingInt(ScoredMovie::movieId));
         if (scored.size() > topK) {
             return scored.subList(0, topK);
         }

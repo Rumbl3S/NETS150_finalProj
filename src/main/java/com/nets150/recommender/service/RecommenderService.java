@@ -73,7 +73,7 @@ public final class RecommenderService {
                 st.accept(cap > 0
                         ? "Streaming ratings.csv (up to " + cap + " rows) into per-movie samples…"
                         : "Streaming full ratings.csv into per-movie samples…");
-                ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400, cap);
+                ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 500, cap);
             } else {
                 ratings = DatasetLoader.ratingsByMovie(DatasetLoader.loadRatings(paths.ratingsCsv()));
             }
@@ -91,7 +91,7 @@ public final class RecommenderService {
             st.accept(cap > 0
                     ? "Streaming ratings (up to " + cap + " rows; faster subset)…"
                     : "Streaming full ratings file (may take several minutes)…");
-            ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400, cap);
+            ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 500, cap);
             st.accept("Building sparse similarity graph (first run: several minutes)…");
             graph = SparseMovieGraphBuilder.movieLens20MDefault().build(movies, ratings, st);
         } else {
