@@ -1,13 +1,30 @@
-Dataset format and provenance
------------------------------
+Dataset source and layout
+=========================
 
-This project stores data locally under the `data/` directory.
+Full MovieLens 20M (recommended)
+--------------------------------
+1. Install Python deps:  pip install -r scripts/requirements-movielens.txt
+2. From the project root run:  python3 scripts/download_movielens.py
 
-The CSV layout follows the MovieLens style (movie id, title, pipe-separated genres; ratings with user id, movie id, star rating). MovieLens is published by GroupLens Research at the University of Minnesota.
+This uses kagglehub to download **grouplens/movielens-20m-dataset** from Kaggle and copies **movies.csv** and **ratings.csv** into:
 
-Official MovieLens page (for full downloads and citation):
-https://grouplens.org/datasets/movielens/
+  data/movielens-20m/
 
-The bundled `movies.csv` and `ratings.csv` are a small 1995-style excerpt compatible with that schema, augmented with `movie_people.csv` (director and pipe-separated actor names) so the proposal’s cast and director similarity signals are present without needing the full credits dump from IMDb.
+The Java app resolves datasets in this order:
+  • Environment variable **MOVIELENS_20M_DIR** (absolute path to a folder that already contains movies.csv + ratings.csv), else
+  • **<config>/movielens-20m/** under your config directory (default config is the `data` folder, so `data/movielens-20m/`), else
+  • **<config>/movies.csv** and **<config>/ratings.csv** (small bundled sample) plus optional **movie_people.csv**.
 
-You may replace these files with `movies.csv` and `ratings.csv` from MovieLens “ml-latest-small” (and optionally extend `movie_people.csv` for your subset). After replacing data, delete `data/cache/graph_cache.ser` or use “Reload data” in the UI so the graph rebuilds.
+Official GroupLens page (citation and other releases):
+  https://grouplens.org/datasets/movielens/
+
+Kaggle mirror used by the script:
+  https://www.kaggle.com/datasets/grouplens/movielens-20m-dataset
+
+Processing note
+---------------
+The full ratings file is streamed once; each movie keeps a **reservoir sample** of user ratings (default 400) for correlation. The graph is **sparse** (top similar neighbors per movie) so the program stays responsive on ~27k movies and ~20M ratings.
+
+Cache
+-----
+After the first successful build, the graph is saved under **<dataset-folder>/cache/graph_cache.ser**. Delete that file to force a rebuild.

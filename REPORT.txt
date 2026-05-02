@@ -3,11 +3,15 @@ Short report — graph model, algorithms, example outputs
 
 Graph model
 -----------
-Nodes are movies (integer ids aligned with the MovieLens-style `movies.csv`). Undirected weighted edges connect movie pairs whose combined similarity score is at least a fixed minimum. Similarity blends four signals with fixed weights: Jaccard overlap on genre tags, Jaccard overlap on actor names (from `movie_people.csv`), an indicator for same director, and a rating-correlation term. For the rating term we take users who rated both films; if at least two users overlap, we compute Pearson correlation between the two rating vectors and map the correlation from [-1,1] to [0,1]. The edge weight used for shortest-path search is (1 − similarity), so more similar neighbors are linked by cheaper edges and appear closer under Dijkstra.
+Nodes are movies (integer ids aligned with the MovieLens-style `movies.csv`). Undirected weighted edges use weight (1 − similarity), so more similar neighbors yield shorter Dijkstra paths.
+
+**Toy / enriched CSVs:** Similarity can blend genre Jaccard, actor Jaccard and director match (from optional `movie_people.csv`), plus Pearson correlation on users who rated both films (minimum overlap threshold).
+
+**MovieLens 20M at full scale:** Cast and director are not in the core GroupLens files, so we use **genre Jaccard plus rating correlation** only (fixed blend). Ratings are **streamed** from `ratings.csv`; each movie keeps a **bounded random sample** of (user, rating) pairs for correlation so the full ~20M rows never load into memory. The graph is **sparse**: each movie considers genre neighbors, refines with a two-stage score, and keeps only the strongest **top edges per movie**, merging parallel suggestions with the **minimum** edge weight so Dijkstra sees the best link between two movies.
 
 Algorithms
 ----------
-• Breadth-first search (BFS) and depth-first search (DFS) traverse the adjacency list in deterministic ascending neighbor id order; they ignore edge weights and are intended to illustrate classic graph exploration from a start movie.
+• Breadth-first search (BFS) and depth-first search (DFS) traverse the adjacency list in deterministic ascending neighbor id order; they ignore edge weights and illustrate classic exploration from a start movie (cap raised to 50 nodes in the UI for large graphs).
 • Recommendations use multi-source Dijkstra: every selected “liked” movie is a source with initial distance zero; the algorithm relaxes edges in best-first order until shortest-path distances are known. Movies are ranked by increasing distance from the seed set (excluding the seeds themselves).
 
 Example outputs (illustrative; your numeric distances may differ slightly)
@@ -20,4 +24,4 @@ If you select “Twelve Monkeys (1995)” and run DFS, the preorder listing foll
 
 Dataset note
 ------------
-The bundled dataset is a small local excerpt in MovieLens-compatible format; see DATASET_SOURCE.txt for the official MovieLens link and how to swap in a larger release.
+Use `scripts/download_movielens.py` for the full **MovieLens 20M** Kaggle mirror, or the small toy CSVs under `data/`; see DATASET_SOURCE.txt for links and folder layout.

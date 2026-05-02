@@ -32,6 +32,34 @@ public final class WeightedGraph implements Serializable {
         adjacency.computeIfAbsent(b, k -> new ArrayList<>()).add(new Edge(a, weight));
     }
 
+    /**
+     * Adds or tightens an undirected edge: if an edge already exists between the same endpoints, keeps the
+     * smaller weight (stronger similarity / cheaper path for Dijkstra).
+     */
+    public void addUndirectedEdgeMergeMin(int a, int b, double weight) {
+        if (a == b) {
+            return;
+        }
+        if (weight < 0) {
+            throw new IllegalArgumentException("weights must be non-negative");
+        }
+        mergeHalf(a, b, weight);
+        mergeHalf(b, a, weight);
+    }
+
+    private void mergeHalf(int from, int to, double weight) {
+        List<Edge> list = adjacency.computeIfAbsent(from, k -> new ArrayList<>());
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).to() == to) {
+                if (weight < list.get(i).weight()) {
+                    list.set(i, new Edge(to, weight));
+                }
+                return;
+            }
+        }
+        list.add(new Edge(to, weight));
+    }
+
     public List<Edge> neighbors(int node) {
         return adjacency.getOrDefault(node, List.of());
     }

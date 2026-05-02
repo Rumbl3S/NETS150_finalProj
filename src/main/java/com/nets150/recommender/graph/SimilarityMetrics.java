@@ -92,6 +92,20 @@ public final class SimilarityMetrics {
     }
 
     /**
+     * MovieLens core files have no cast; use genre overlap plus rating correlation only.
+     */
+    public static double combinedGenresAndRatings(
+            Movie a,
+            Movie b,
+            Map<Integer, Map<Integer, Double>> ratingsByMovie,
+            int minCommonUsersForCorrelation
+    ) {
+        double g = jaccard(a.getGenres(), b.getGenres());
+        double rat = ratingSimilarity(ratingsByMovie, a.getId(), b.getId(), minCommonUsersForCorrelation);
+        return 0.45 * g + 0.55 * rat;
+    }
+
+    /**
      * Non-negative edge weight for Dijkstra: dissimilar movies have larger weight.
      */
     public static double similarityToEdgeWeight(double similarity) {
