@@ -7,6 +7,7 @@ import com.nets150.recommender.data.DatasetPaths;
 import com.nets150.recommender.data.GraphCache;
 import com.nets150.recommender.data.RatingsReservoir;
 import com.nets150.recommender.graph.MovieGraphBuilder;
+import com.nets150.recommender.graph.SimilarityMetrics;
 import com.nets150.recommender.graph.SparseMovieGraphBuilder;
 import com.nets150.recommender.graph.WeightedGraph;
 import com.nets150.recommender.model.Movie;
@@ -66,6 +67,9 @@ public final class RecommenderService {
         if (useCacheIfPresent && Files.exists(cacheFile)) {
             st.accept("Loading graph from cache (graph_cache.ser)…");
             GraphCache.CachedState state = GraphCache.load(cacheFile);
+            WeightedGraph graph = state.graph();
+            st.accept("Normalizing edge weights (fixes old caches with 0-weight edges)…");
+            graph.mergeParallelEdgesAndClamp(SimilarityMetrics.MIN_EDGE_WEIGHT);
             List<Movie> movies = state.movies();
             Map<Integer, Map<Integer, Double>> ratings;
             if (paths.useLargeScalePipeline()) {
@@ -78,7 +82,7 @@ public final class RecommenderService {
                 ratings = DatasetLoader.ratingsByMovie(DatasetLoader.loadRatings(paths.ratingsCsv()));
             }
             st.accept("Ready — " + movies.size() + " movies.");
-            return new RecommenderService(configDir, paths.root(), movies, state.graph(), ratings, paths.movieLens20M());
+            return new RecommenderService(configDir, paths.root(), movies, graph, ratings, paths.movieLens20M());
         }
 
         st.accept("Reading movies.csv…");
@@ -101,6 +105,7 @@ public final class RecommenderService {
             MovieGraphBuilder builder = new MovieGraphBuilder(0.08, 2);
             graph = builder.build(movies, ratings);
         }
+        graph.mergeParallelEdgesAndClamp(SimilarityMetrics.MIN_EDGE_WEIGHT);
 
         st.accept("Writing graph cache…");
         GraphCache.save(cacheFile, graph, movies);

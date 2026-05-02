@@ -72,6 +72,33 @@ public final class WeightedGraph implements Serializable {
         return adjacency.containsKey(id);
     }
 
+    /**
+     * For each directed half-edge list: merge parallel edges to the same target keeping the minimum weight,
+     * then clamp every weight to at least {@code minWeight}. Use after deserializing older caches that may
+     * contain zero-weight edges or duplicate adjacency entries.
+     */
+    public void mergeParallelEdgesAndClamp(double minWeight) {
+        if (minWeight < 0) {
+            throw new IllegalArgumentException("minWeight must be non-negative");
+        }
+        Map<Integer, List<Edge>> rebuilt = new HashMap<>();
+        for (Map.Entry<Integer, List<Edge>> e : new HashMap<>(adjacency).entrySet()) {
+            int from = e.getKey();
+            Map<Integer, Double> best = new HashMap<>();
+            for (Edge ed : e.getValue()) {
+                double w = Math.max(minWeight, ed.weight());
+                best.merge(ed.to(), w, Math::min);
+            }
+            List<Edge> out = new ArrayList<>(best.size());
+            for (Map.Entry<Integer, Double> te : best.entrySet()) {
+                out.add(new Edge(te.getKey(), te.getValue()));
+            }
+            rebuilt.put(from, out);
+        }
+        adjacency.clear();
+        adjacency.putAll(rebuilt);
+    }
+
     public record Edge(int to, double weight) implements Serializable {
         private static final long serialVersionUID = 1L;
     }
