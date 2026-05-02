@@ -1,0 +1,43 @@
+User manual — Graph Movie Recommender
+======================================
+
+Purpose
+-------
+You pick movies you enjoy; the program suggests similar titles using a graph built from genres, actors, director overlap, and rating correlation, then ranks candidates with shortest-path (Dijkstra) distances.
+
+Requirements
+------------
+Java 17 or newer. A graphical desktop environment (Swing UI). Network is not required at runtime because data files are local.
+
+How to start the program
+-------------------------
+1. Open a terminal and change directory to the project root (the folder that contains `data/` and `pom.xml`).
+2. Run with Maven:  mvn compile exec:java
+   Or compile manually with javac and run:  java -cp out com.nets150.recommender.Main
+3. Optional: pass a custom data folder path as the first program argument (default is `data` relative to the current working directory).
+
+Main window areas
+-----------------
+• Filter box: type part of a title or a numeric movie id, then click “Apply filter” to shrink the list.
+• Movie list: select one or more movies (Ctrl/Cmd-click for multiple). These are your “seed” likes.
+• Top K: how many ranked recommendations to show (1–50).
+• Recommend (shortest-path / Dijkstra): builds the recommendation list from all selected seeds at once (multi-source shortest paths).
+• BFS order from first selection: prints breadth-first visit order starting at the first highlighted movie (up to 40 nodes).
+• DFS order from first selection: prints depth-first preorder visit order from the first highlighted movie (up to 40 nodes).
+• Reload data (rebuild graph): re-reads `movies.csv`, `ratings.csv`, and `movie_people.csv`, rebuilds the graph, and overwrites `data/cache/graph_cache.ser`.
+
+Data files (local storage)
+--------------------------
+• data/movies.csv — MovieLens-style movie id, title, genres.
+• data/ratings.csv — user id, movie id, rating, timestamp.
+• data/movie_people.csv — movie id, director, pipe-separated actor names (lowercased for matching).
+• data/cache/graph_cache.ser — optional binary cache of the built graph for faster startup; safe to delete to force a rebuild.
+
+Screenshots for your submission
+-------------------------------
+Capture at least: (1) the main window after launch, (2) several movies selected with a populated recommendation list in the output panel, (3) one BFS output and one DFS output for the same or different seed movies. Save images as PNG or PDF and attach them to Gradescope alongside this manual.
+
+Troubleshooting
+---------------
+• Empty recommendations: seeds may be isolated at the current similarity threshold; try other seeds, add overlapping ratings in `ratings.csv`, or lower the minimum similarity in `RecommenderService` when constructing `MovieGraphBuilder`.
+• Class not found / missing data: ensure the working directory is the project root so `data/` is found, or pass the absolute path to your data folder as the first argument.

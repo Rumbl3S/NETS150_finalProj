@@ -1,0 +1,13 @@
+Dataset format and provenance
+-----------------------------
+
+This project stores data locally under the `data/` directory.
+
+The CSV layout follows the MovieLens style (movie id, title, pipe-separated genres; ratings with user id, movie id, star rating). MovieLens is published by GroupLens Research at the University of Minnesota.
+
+Official MovieLens page (for full downloads and citation):
+https://grouplens.org/datasets/movielens/
+
+The bundled `movies.csv` and `ratings.csv` are a small 1995-style excerpt compatible with that schema, augmented with `movie_people.csv` (director and pipe-separated actor names) so the proposal’s cast and director similarity signals are present without needing the full credits dump from IMDb.
+
+You may replace these files with `movies.csv` and `ratings.csv` from MovieLens “ml-latest-small” (and optionally extend `movie_people.csv` for your subset). After replacing data, delete `data/cache/graph_cache.ser` or use “Reload data” in the UI so the graph rebuilds.
