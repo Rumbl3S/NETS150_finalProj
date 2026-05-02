@@ -69,8 +69,11 @@ public final class RecommenderService {
             List<Movie> movies = state.movies();
             Map<Integer, Map<Integer, Double>> ratings;
             if (paths.useLargeScalePipeline()) {
-                st.accept("Streaming ratings.csv into per-movie samples…");
-                ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400);
+                long cap = RatingsReservoir.ratingFileLineLimit();
+                st.accept(cap > 0
+                        ? "Streaming ratings.csv (up to " + cap + " rows) into per-movie samples…"
+                        : "Streaming full ratings.csv into per-movie samples…");
+                ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400, cap);
             } else {
                 ratings = DatasetLoader.ratingsByMovie(DatasetLoader.loadRatings(paths.ratingsCsv()));
             }
@@ -84,8 +87,11 @@ public final class RecommenderService {
         Map<Integer, Map<Integer, Double>> ratings;
         WeightedGraph graph;
         if (paths.useLargeScalePipeline()) {
-            st.accept("Streaming ratings (full ~20M rows; one pass, may take 1–3 minutes)…");
-            ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400);
+            long cap = RatingsReservoir.ratingFileLineLimit();
+            st.accept(cap > 0
+                    ? "Streaming ratings (up to " + cap + " rows; faster subset)…"
+                    : "Streaming full ratings file (may take several minutes)…");
+            ratings = RatingsReservoir.buildPerMovieSample(paths.ratingsCsv(), 400, cap);
             st.accept("Building sparse similarity graph (first run: several minutes)…");
             graph = SparseMovieGraphBuilder.movieLens20MDefault().build(movies, ratings, st);
         } else {

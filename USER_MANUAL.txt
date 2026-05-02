@@ -14,7 +14,7 @@ Full MovieLens 20M (Kaggle)
 1. `python3 -m pip install -r scripts/requirements-movielens.txt` (use `-m pip` so packages install for the same `python3` that runs the script)
 2. `python3 scripts/download_movielens.py`  
    This uses **kagglehub** to download **grouplens/movielens-20m-dataset** and copies `movies.csv` and `ratings.csv` into `data/movielens-20m/`.
-3. Start the app from the project root. The first run **streams all ratings** (can take a few minutes) and then **builds the sparse graph** (can take several more minutes). A loading window shows progress. Later runs reuse `data/movielens-20m/cache/graph_cache.ser` for a faster start (ratings are still re-sampled once per launch for correlation).
+3. Start the app from the project root. By default only **one million rating lines** are used (faster). The first run **streams ratings** then **builds the sparse graph**; a loading window shows progress. Later runs reuse `data/movielens-20m/cache/graph_cache.ser`. For the full ~20M ratings file use `-Dmovielens.ratingLines=0` when launching Java, and `MOVIELENS_RATINGS_MAX_LINES=0` when running the download script.
 
 Alternatively set **MOVIELENS_20M_DIR** to an absolute path that already contains `movies.csv` and `ratings.csv`.
 

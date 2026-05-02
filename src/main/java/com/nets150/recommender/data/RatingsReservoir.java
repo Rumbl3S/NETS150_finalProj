@@ -14,12 +14,23 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * One streaming pass over ratings.csv: keeps up to {@code maxRatingsPerMovie} (user,rating) pairs per movie
  * using reservoir sampling over the stream of ratings for that movie.
+ * <p>
+ * For large MovieLens files, only the first {@code maxDataLines} non-blank data rows are read unless
+ * {@code maxDataLines} is {@code <= 0} (unlimited). Default limit comes from system property
+ * {@code movielens.ratingLines} (default {@code 1000000}; use {@code 0} or {@code all} for full file).
  */
 public final class RatingsReservoir {
     private RatingsReservoir() {
     }
 
-    public static Map<Integer, Map<Integer, Double>> buildPerMovieSample(Path ratingsCsv, int maxRatingsPerMovie) throws IOException {
+    /**
+     * @param maxDataLines maximum rating rows to read after the header; {@code <= 0} means read entire file
+     */
+    public static Map<Integer, Map<Integer, Double>> buildPerMovieSample(
+            Path ratingsCsv,
+            int maxRatingsPerMovie,
+            long maxDataLines
+    ) throws IOException {
         Map<Integer, List<int[]>> reservoirLists = new HashMap<>();
         Map<Integer, Integer> seenCount = new HashMap<>();
 
@@ -29,9 +40,13 @@ public final class RatingsReservoir {
                 throw new IOException("empty ratings file");
             }
             String line;
+            long processed = 0;
             while ((line = br.readLine()) != null) {
                 if (line.isBlank()) {
                     continue;
+                }
+                if (maxDataLines > 0 && processed >= maxDataLines) {
+                    break;
                 }
                 int c1 = line.indexOf(',');
                 int c2 = line.indexOf(',', c1 + 1);
@@ -58,6 +73,7 @@ public final class RatingsReservoir {
                         buf.set(j, new int[]{userId, scaled});
                     }
                 }
+                processed++;
             }
         }
 
@@ -70,5 +86,24 @@ public final class RatingsReservoir {
             out.put(e.getKey(), m);
         }
         return out;
+    }
+
+    public static Map<Integer, Map<Integer, Double>> buildPerMovieSample(Path ratingsCsv, int maxRatingsPerMovie) throws IOException {
+        return buildPerMovieSample(ratingsCsv, maxRatingsPerMovie, ratingFileLineLimit());
+    }
+
+    /**
+     * Max rating <em>data</em> lines to scan from ratings.csv. {@code <= 0} means no limit (full file).
+     */
+    public static long ratingFileLineLimit() {
+        String p = System.getProperty("movielens.ratingLines");
+        if (p == null || p.isBlank()) {
+            return 1_000_000L;
+        }
+        String t = p.trim();
+        if ("0".equals(t) || "-1".equals(t) || "all".equalsIgnoreCase(t)) {
+            return 0L;
+        }
+        return Long.parseLong(t);
     }
 }

@@ -10,9 +10,14 @@ Prerequisites:
 
 Usage (from project root):
   python3 scripts/download_movielens.py
+
+Optional environment (ratings are huge; default is a fast subset):
+  MOVIELENS_RATINGS_MAX_LINES   default 1000000; use 0 for full ~20M rows
+  MOVIELENS_RATINGS_ORDER       head (default) or tail — which slice of the file to keep
 """
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import tarfile
@@ -68,13 +73,13 @@ def main() -> int:
             return 1
 
         shutil.copy2(movies, out / "movies.csv")
-        shutil.copy2(ratings, out / "ratings.csv")
+        sample_ratings_to_output(ratings, out / "ratings.csv")
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
     print("Copied to:", out.resolve())
     print("  movies.csv  <-", movies)
-    print("  ratings.csv <-", ratings)
+    print("  ratings.csv <-", ratings, "(see MOVIELENS_RATINGS_MAX_LINES / ORDER if subset)")
     print("Run the Java app from the project root (default data/ picks up movielens-20m).")
     return 0
 
@@ -169,6 +174,68 @@ def _extract_csvs_from_tar(tp: Path, staging: Path) -> tuple[Path | None, Path |
             return _find_csvs_in_tree(staging)
     except (tarfile.TarError, OSError):
         return None, None
+
+
+def sample_ratings_to_output(src: Path, dst: Path) -> None:
+    raw = os.environ.get("MOVIELENS_RATINGS_MAX_LINES", "1000000").strip()
+    max_lines = int(raw) if raw else 1_000_000
+    order = os.environ.get("MOVIELENS_RATINGS_ORDER", "head").strip().lower()
+    if max_lines <= 0:
+        shutil.copy2(src, dst)
+        print("Ratings: copied full file (MOVIELENS_RATINGS_MAX_LINES<=0).")
+        return
+    if order == "tail":
+        write_ratings_tail(src, dst, max_lines)
+        print(f"Ratings: wrote last {max_lines:,} data rows (+ header) -> ratings.csv")
+    else:
+        write_ratings_head(src, dst, max_lines)
+        print(f"Ratings: wrote first {max_lines:,} data rows (+ header) -> ratings.csv")
+
+
+def write_ratings_head(src: Path, dst: Path, max_data_lines: int) -> None:
+    with open(src, "r", encoding="utf-8", errors="replace") as inf, open(
+        dst, "w", encoding="utf-8", newline=""
+    ) as outf:
+        header = inf.readline()
+        if not header:
+            raise OSError("empty ratings source")
+        outf.write(header)
+        n = 0
+        for line in inf:
+            if n >= max_data_lines:
+                break
+            outf.write(line)
+            n += 1
+
+
+def write_ratings_tail(src: Path, dst: Path, max_data_lines: int) -> None:
+    with open(src, "r", encoding="utf-8", errors="replace") as f:
+        header = f.readline()
+    if not header:
+        raise OSError("empty ratings source")
+    block = 8 * 1024 * 1024
+    chunk = b""
+    with open(src, "rb") as bf:
+        bf.seek(0, 2)
+        size = bf.tell()
+        pos = size
+        while pos > 0:
+            step = min(block, pos)
+            pos -= step
+            bf.seek(pos)
+            chunk = bf.read(step) + chunk
+            if chunk.count(b"\n") >= max_data_lines + 2:
+                break
+    first_nl = chunk.find(b"\n")
+    if first_nl >= 0:
+        chunk = chunk[first_nl + 1 :]
+    text = chunk.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    tail = lines[-max_data_lines:] if len(lines) > max_data_lines else lines
+    with open(dst, "w", encoding="utf-8", newline="") as outf:
+        outf.write(header)
+        for line in tail:
+            outf.write(line + "\n")
 
 
 if __name__ == "__main__":

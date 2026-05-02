@@ -6,4 +6,6 @@ out/
 *.iml
 .DS_Store
 data/cache/
+data/movielens-20m/
+scripts/__pycache__/
 sources.txt

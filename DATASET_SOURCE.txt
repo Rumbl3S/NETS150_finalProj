@@ -24,7 +24,11 @@ Kaggle mirror used by the script:
 
 Processing note
 ---------------
-The full ratings file is streamed once; each movie keeps a **reservoir sample** of user ratings (default 400) for correlation. The graph is **sparse** (top similar neighbors per movie) so the program stays responsive on ~27k movies and ~20M ratings.
+By default the download script writes only **1,000,000 rating rows** (plus header) into `ratings.csv` so disk and Java startup stay light. Override with environment variables on download: `MOVIELENS_RATINGS_MAX_LINES` (use `0` for full ~20M) and `MOVIELENS_RATINGS_ORDER` (`head` default, or `tail` for the last N rows of the file).
+
+The Java app also stops after **1,000,000** rating lines when reading `ratings.csv` unless you pass `-Dmovielens.ratingLines=0` (full file) or another limit.
+
+Each movie still keeps a **reservoir sample** (default 400 user ratings) from those rows for correlation. The graph is **sparse** (top similar neighbors per movie).
 
 Cache
 -----
