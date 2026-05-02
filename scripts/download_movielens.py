@@ -4,7 +4,7 @@ Download the full MovieLens 20M dataset from Kaggle (grouplens/movielens-20m-dat
 via kagglehub, then copy movies.csv and ratings.csv into this repo under data/movielens-20m/.
 
 Prerequisites:
-  pip install kagglehub
+  python3 -m pip install kagglehub   (use -m pip so it matches `python3`)
   Kaggle API credentials configured if required by your kagglehub setup.
 
 Usage (from project root):
@@ -21,7 +21,15 @@ def main() -> int:
     try:
         import kagglehub
     except ImportError:
-        print("Install kagglehub first:  pip install kagglehub", file=sys.stderr)
+        print(
+            "Cannot import kagglehub in this Python interpreter:\n  "
+            + sys.executable
+            + "\n\n"
+            "Your `pip` and `python3` are often different installations. Install into THIS interpreter:\n"
+            "  python3 -m pip install -r scripts/requirements-movielens.txt\n"
+            "or:  python3 -m pip install kagglehub\n",
+            file=sys.stderr,
+        )
         return 1
 
     print("Downloading grouplens/movielens-20m-dataset (this is large; may take a while)...")

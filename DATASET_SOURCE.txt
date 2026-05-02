@@ -3,7 +3,8 @@ Dataset source and layout
 
 Full MovieLens 20M (recommended)
 --------------------------------
-1. Install Python deps:  pip install -r scripts/requirements-movielens.txt
+1. Install Python deps (use the same interpreter as `python3`):  
+   python3 -m pip install -r scripts/requirements-movielens.txt
 2. From the project root run:  python3 scripts/download_movielens.py
 
 This uses kagglehub to download **grouplens/movielens-20m-dataset** from Kaggle and copies **movies.csv** and **ratings.csv** into:

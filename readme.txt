@@ -10,7 +10,7 @@ AI usage (concrete): An AI coding assistant was used to scaffold the Maven layou
 
 If the proposal changes after TA feedback: tune `SparseMovieGraphBuilder.movieLens20MDefault()` or `MovieGraphBuilder` (toy mode), and delete `<dataset>/cache/graph_cache.ser` before demoing.
 
-Full MovieLens 20M: `pip install -r scripts/requirements-movielens.txt` then `python3 scripts/download_movielens.py` (writes `data/movielens-20m/`). First Java launch builds the sparse graph (several minutes) then caches it.
+Full MovieLens 20M: `python3 -m pip install -r scripts/requirements-movielens.txt` then `python3 scripts/download_movielens.py` (writes `data/movielens-20m/`). First Java launch builds the sparse graph (several minutes) then caches it.
 
 How to run (requires Java 17+): from the project root, `./run.sh` downloads FlatLaf if needed, compiles into `out/`, and launches the UI (`java -cp out:lib/flatlaf-3.4.1.jar …`). With Maven: `mvn compile exec:java`. Optional first argument: config directory (default `data`) where the app looks for `movielens-20m/` or toy `movies.csv`.
 
