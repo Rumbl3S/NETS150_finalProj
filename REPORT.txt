@@ -14,13 +14,13 @@ Algorithms
 • Breadth-first search (BFS) and depth-first search (DFS) traverse the adjacency list in deterministic ascending neighbor id order; they ignore edge weights and illustrate classic exploration from a start movie (cap raised to 50 nodes in the UI for large graphs).
 • Recommendations use multi-source Dijkstra: every selected “liked” movie is a source with initial distance zero; the algorithm relaxes edges in best-first order until shortest-path distances are known. Movies are ranked by increasing distance from the seed set (excluding the seeds themselves).
 
-Example outputs (illustrative; your numeric distances may differ slightly)
--------------------------------------------------------------------------
-If you select “Heat (1995)” and click Recommend, you should see other crime/action titles that share cast or rating patterns with high similarity, such as “Casino (1995)” or “Get Shorty (1995)”, appearing near the top with smaller distances than unrelated family films.
+Example outputs
+---------------
+Seeding with “Toy Story (1995)”, “Jumanji (1995)”, and “Grumpier Old Men (1995)” produces top recommendations including “Sabrina (1995)” (distance 0.525), “Tom and Huck (1995)” (0.610), and “American President, The (1995)” (0.642) — all 1995 family/comedy-adjacent titles that share genre overlap and rating correlation with the seed set.
 
-If you select “Toy Story (1995)” and run BFS from that row, the printed order begins at Toy Story and expands ring-by-ring to adjacent animation/adventure neighbors like “Balto (1995)” before deeper branches.
+Running BFS from “Toy Story (1995)” visits Toy Story first, then expands through adjacent neighbors: Jumanji, Tom and Huck, GoldenEye, Dracula: Dead and Loving It, Balto, Powder — reflecting the ring-by-ring structure of the similarity graph.
 
-If you select “Twelve Monkeys (1995)” and run DFS, the preorder listing follows one branch of the similarity graph until the node cap (40) is reached, then unwinds according to the depth-first policy.
+Running DFS from “Toy Story (1995)” follows one branch of the graph in preorder — Jumanji, Tom and Huck, GoldenEye, Heat, Sudden Death — before backtracking, producing a noticeably different visit order than BFS despite the same start node.
 
 Dataset note
 ------------

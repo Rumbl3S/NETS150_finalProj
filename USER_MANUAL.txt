@@ -36,10 +36,6 @@ Small toy dataset (optional)
 ----------------------------
 If `data/movielens-20m/` is absent, the app uses `data/movies.csv`, `data/ratings.csv`, and optional `data/movie_people.csv`, with cache at `data/cache/graph_cache.ser`.
 
-Screenshots for your submission
--------------------------------
-Capture: (1) main window with MovieLens path visible in the welcome text, (2) several seeds with a recommendation list, (3) BFS and DFS sections filled in.
-
 Troubleshooting
 ---------------
 • **Kaggle / kagglehub errors:** configure Kaggle credentials as required by your environment.  

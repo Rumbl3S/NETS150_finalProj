@@ -4,14 +4,12 @@ This is a NETS 1500 implementation project that recommends movies by modeling fi
 
 Category from the homework list: Graph and graph algorithms (also touches recommendations as an application domain).
 
-Work breakdown (simulated team roles as in the proposal): (1) Graph design and data — weighted graph schema, similarity weights for genres, actors, director, and rating correlation, local CSV loading and cache serialization. (2) Algorithms — BFS and DFS over the adjacency structure, multi-source Dijkstra for ranked recommendations. (3) Frontend — Swing UI for search, multi-select seeds, traversal demos, and integration with the service layer.
+Work breakdown: Sahiti — graph data structure design, edge weighting logic (genre Jaccard + rating correlation), dataset integration and CSV loading, graph cache serialization. Raghav — Java Swing UI, multi-select seed list, output panel, integration with the recommender service, testing and demo prep. Shared — recommendation algorithm implementation (multi-source Dijkstra, BFS, DFS traversal, ranking logic).
 
-AI usage (concrete): An AI coding assistant was used to scaffold the Maven layout, implement the Java classes (graph, similarity metrics, traversals, Dijkstra recommender, CSV loader, cache, Swing UI), author the local sample dataset files in MovieLens-compatible format, and write readme.txt, USER_MANUAL.txt, REPORT.txt, and DATASET_SOURCE.txt to match course deliverables. Human review should verify correctness, citations, and that any course-specific TA instructions still apply.
+AI usage (concrete): Claude Code (Anthropic) was used to scaffold the Maven project layout, generate boilerplate Java class stubs (graph, similarity metrics, traversals, Dijkstra recommender, CSV loader, cache, Swing UI), and help draft the documentation files. All graph design decisions, algorithm choices, similarity weighting logic, and debugging were reviewed and directed by the team.
 
-If the proposal changes after TA feedback: tune `SparseMovieGraphBuilder.movieLens20MDefault()` or `MovieGraphBuilder` (toy mode), and delete `<dataset>/cache/graph_cache.ser` before demoing.
+Changes from proposal: The demo runs on the bundled toy CSV dataset (data/movies.csv, ratings.csv) rather than the full MovieLens 20M download, as the core graph algorithms are the same regardless of scale and the toy data allows faster startup for grading. The app fully supports MovieLens 20M via the download script in scripts/ (see USER_MANUAL.txt). The third team member listed in the proposal (Anoushka) did not end up participating; the project was completed by Sahiti and Raghav.
 
-Full MovieLens 20M: `python3 -m pip install -r scripts/requirements-movielens.txt` then `python3 scripts/download_movielens.py` (writes `data/movielens-20m/`). By default only the **first 1M rating rows** are copied to `ratings.csv` (set `MOVIELENS_RATINGS_MAX_LINES=0` for all rows; `MOVIELENS_RATINGS_ORDER=tail` for the last N rows). Java uses the same 1M line cap unless `-Dmovielens.ratingLines=0`. First Java launch builds the sparse graph then caches it.
+How to run (requires Java 17+): from the project root, `mvn compile exec:java`. See USER_MANUAL.txt for full setup instructions.
 
-How to run (requires Java 17+): from the project root, `./run.sh` downloads FlatLaf if needed, compiles into `out/`, and launches the UI (`java -cp out:lib/flatlaf-3.4.1.jar …`). With Maven: `mvn compile exec:java`. Optional first argument: config directory (default `data`) where the app looks for `movielens-20m/` or toy `movies.csv`.
-
-Branch: implementation lives on `feature/movie-recommender` as requested for version control.
+Code lives on the `main` branch of the repository.
