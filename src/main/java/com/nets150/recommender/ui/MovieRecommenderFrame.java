@@ -31,15 +31,14 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridBagLayout;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -50,7 +49,7 @@ public final class MovieRecommenderFrame extends JFrame {
     private static final Color BG_CARD = Color.WHITE;
     private static final Color TEXT_PRIMARY = new Color(33, 37, 41);
     private static final Color TEXT_SECONDARY = new Color(108, 117, 125);
-    private static final Color ACCENT_BLUE = new Color(13, 110, 253);
+    private static final Color ACCENT_BLUE = new Color(91, 192, 255);
     private static final Color ACCENT_GREEN = new Color(25, 135, 84);
     private static final Color ACCENT_PURPLE = new Color(111, 66, 193);
     private static final Color BORDER_COLOR = new Color(222, 226, 230);
@@ -211,7 +210,7 @@ public final class MovieRecommenderFrame extends JFrame {
 
         JPanel addPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         addPanel.setBackground(BG_CARD);
-        JButton addButton = createStyledButton("Add to my picks", ACCENT_GREEN, true);
+        JButton addButton = createStyledButton("Add to my picks", ACCENT_BLUE, true);
         addButton.setToolTipText("Add selected movies to your picks list");
         addButton.addActionListener(e -> addSelectionToSeeds());
         addPanel.add(addButton);
@@ -298,7 +297,6 @@ public final class MovieRecommenderFrame extends JFrame {
         JButton recommendBtn = createStyledButton("Get recommendations", ACCENT_BLUE, true);
         recommendBtn.setToolTipText("Get movie recommendations based on your picks");
         recommendBtn.addActionListener(e -> runRecommendations());
-        recommendBtn.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_ROUND_RECT);
 
         recommendPanel.add(topKLabel);
         recommendPanel.add(topKSpinner);
@@ -323,8 +321,13 @@ public final class MovieRecommenderFrame extends JFrame {
         dfsBtn.setToolTipText("Depth-First Search from first pick or selection");
         dfsBtn.addActionListener(e -> runDfs());
 
+        JButton visualizeBtn = createStyledButton("Visualize Graph", ACCENT_PURPLE, false);
+        visualizeBtn.setToolTipText("Show interactive graph visualization of movie connections");
+        visualizeBtn.addActionListener(e -> showGraphVisualization());
+
         traversalPanel.add(bfsBtn);
         traversalPanel.add(dfsBtn);
+        traversalPanel.add(visualizeBtn);
 
         JPanel reloadPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 5));
         reloadPanel.setBackground(BG_CARD);
@@ -361,7 +364,7 @@ public final class MovieRecommenderFrame extends JFrame {
         if (filled) {
             button.setBackground(color);
             button.setForeground(Color.WHITE);
-            button.setBorderPainted(false);
+            button.setBorder(BorderFactory.createLineBorder(color, 1));
             button.setOpaque(true);
         } else {
             button.setBackground(BG_CARD);
@@ -542,6 +545,24 @@ public final class MovieRecommenderFrame extends JFrame {
             sb.append(String.format(Locale.ROOT, "%3d. %s%n", ++i, m != null ? m.getTitle() : id));
         }
         return sb.toString();
+    }
+
+    private void showGraphVisualization() {
+        Set<Integer> seeds = seedIdsOrdered();
+        if (seeds.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "Please add at least one movie to your picks to visualize the graph.",
+                "No Seeds",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        Map<Integer, Movie> movieMap = new HashMap<>();
+        for (Movie m : fullList) {
+            movieMap.put(m.getId(), m);
+        }
+
+        GraphVisualizationPanel.showGraphVisualization(this, service.graph(), movieMap, seeds);
     }
 
     public static void show(RecommenderService service, Path configDir) {
