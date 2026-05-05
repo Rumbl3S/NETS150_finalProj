@@ -138,21 +138,7 @@ public final class MovieRecommenderFrame extends JFrame {
         title.setFont(FONT_TITLE);
         title.setForeground(TEXT_PRIMARY);
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        searchPanel.setBackground(BG_CARD);
-        JLabel searchLabel = new JLabel("Search:");
-        searchLabel.setFont(FONT_BODY);
-        filterField.setPreferredSize(new Dimension(250, 30));
-        filterField.setFont(FONT_BODY);
-        filterField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Title or movie id...");
-        JButton applyBtn = createStyledButton("Apply", ACCENT_BLUE, true);
-        applyBtn.addActionListener(e -> applyFilter());
-        searchPanel.add(searchLabel);
-        searchPanel.add(filterField);
-        searchPanel.add(applyBtn);
-
-        header.add(title, BorderLayout.WEST);
-        header.add(searchPanel, BorderLayout.CENTER);
+        header.add(title, BorderLayout.CENTER);
 
         return header;
     }
@@ -204,9 +190,30 @@ public final class MovieRecommenderFrame extends JFrame {
         browseTitle.setForeground(TEXT_PRIMARY);
         browseTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
 
+        // Add search panel at the top of browse card
+        JPanel localSearchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        localSearchPanel.setBackground(BG_CARD);
+        JLabel searchLabel = new JLabel("Search:");
+        searchLabel.setFont(FONT_BODY);
+        JTextField localSearchField = new JTextField(20);
+        localSearchField.setFont(FONT_BODY);
+        localSearchField.setPreferredSize(new Dimension(200, 28));
+        JButton searchBtn = createStyledButton("Search", ACCENT_BLUE, true);
+        searchBtn.setPreferredSize(new Dimension(80, 28));
+
+        localSearchPanel.add(searchLabel);
+        localSearchPanel.add(localSearchField);
+        localSearchPanel.add(searchBtn);
+
+        // Create panel to hold title and search
+        JPanel topPanel = new JPanel(new BorderLayout(0, 5));
+        topPanel.setBackground(BG_CARD);
+        topPanel.add(browseTitle, BorderLayout.NORTH);
+        topPanel.add(localSearchPanel, BorderLayout.CENTER);
+
         JScrollPane movieScroll = new JScrollPane(movieList);
         movieScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        movieScroll.setPreferredSize(new Dimension(0, 250));
+        movieScroll.setPreferredSize(new Dimension(0, 220));
 
         JPanel addPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         addPanel.setBackground(BG_CARD);
@@ -215,7 +222,17 @@ public final class MovieRecommenderFrame extends JFrame {
         addButton.addActionListener(e -> addSelectionToSeeds());
         addPanel.add(addButton);
 
-        browseCard.add(browseTitle, BorderLayout.NORTH);
+        // Wire up search functionality
+        localSearchField.addActionListener(e -> {
+            filterField.setText(localSearchField.getText());
+            applyFilter();
+        });
+        searchBtn.addActionListener(e -> {
+            filterField.setText(localSearchField.getText());
+            applyFilter();
+        });
+
+        browseCard.add(topPanel, BorderLayout.NORTH);
         browseCard.add(movieScroll, BorderLayout.CENTER);
         browseCard.add(addPanel, BorderLayout.SOUTH);
 
