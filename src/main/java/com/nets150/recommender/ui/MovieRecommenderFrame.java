@@ -24,10 +24,16 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.CompoundBorder;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,6 +46,22 @@ import java.util.Set;
  * Browse + persistent "Your picks" seed list (survives search/filter), Dijkstra recommendations, BFS/DFS.
  */
 public final class MovieRecommenderFrame extends JFrame {
+    private static final Color BG_PRIMARY = new Color(248, 249, 250);
+    private static final Color BG_CARD = Color.WHITE;
+    private static final Color TEXT_PRIMARY = new Color(33, 37, 41);
+    private static final Color TEXT_SECONDARY = new Color(108, 117, 125);
+    private static final Color ACCENT_BLUE = new Color(13, 110, 253);
+    private static final Color ACCENT_GREEN = new Color(25, 135, 84);
+    private static final Color ACCENT_PURPLE = new Color(111, 66, 193);
+    private static final Color BORDER_COLOR = new Color(222, 226, 230);
+    private static final Color HOVER_COLOR = new Color(248, 249, 250);
+
+    private static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 24);
+    private static final Font FONT_HEADING = new Font("Segoe UI", Font.BOLD, 18);
+    private static final Font FONT_SUBHEADING = new Font("Segoe UI", Font.BOLD, 14);
+    private static final Font FONT_BODY = new Font("Segoe UI", Font.PLAIN, 13);
+    private static final Font FONT_SMALL = new Font("Segoe UI", Font.PLAIN, 11);
+
     private final Path configDir;
     private RecommenderService service;
     private final DefaultListModel<Movie> listModel = new DefaultListModel<>();
@@ -53,7 +75,7 @@ public final class MovieRecommenderFrame extends JFrame {
     private List<Movie> fullList = List.of();
 
     public MovieRecommenderFrame(RecommenderService service, Path configDir) {
-        super("Movie recommender — similarity graph");
+        super("Movie Recommendation System");
         this.service = service;
         this.configDir = configDir;
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -66,137 +88,37 @@ public final class MovieRecommenderFrame extends JFrame {
                 java.awt.Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof Movie m) {
                     setText(String.format(Locale.ROOT, "  %6d  %s", m.getId(), m.getTitle()));
+                    setFont(FONT_BODY);
                 }
+                if (isSelected) {
+                    setBackground(ACCENT_BLUE);
+                    setForeground(Color.WHITE);
+                } else {
+                    setBackground(index % 2 == 0 ? BG_CARD : HOVER_COLOR);
+                    setForeground(TEXT_PRIMARY);
+                }
+                setBorder(new EmptyBorder(4, 8, 4, 8));
                 return c;
             }
         };
         movieList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        movieList.setVisibleRowCount(14);
+        movieList.setVisibleRowCount(12);
         movieList.setCellRenderer(cellRenderer);
         seedList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        seedList.setVisibleRowCount(6);
+        seedList.setVisibleRowCount(5);
         seedList.setCellRenderer(cellRenderer);
 
-        JLabel headline = new JLabel("What should I watch?");
-        headline.setFont(headline.getFont().deriveFont(Font.BOLD, 20f));
+        JPanel mainPanel = new JPanel(new BorderLayout(0, 0));
+        mainPanel.setBackground(BG_PRIMARY);
 
-        JLabel sub = new JLabel("<html><body style='width:440px'>"
-                + "<b>1.</b> Search the list below, select one or more rows, click <b>Add to my picks</b> (repeat after new searches — picks are kept).<br>"
-                + "<b>2.</b> <b>Your picks</b> is what recommendations use. Remove or clear rows there if you change your mind.<br>"
-                + "<b>3.</b> <b>Get recommendations</b> runs multi-source Dijkstra (lower distance = closer in the graph; values use a small edge floor so ties are rare).<br>"
-                + "<b>4.</b> <b>BFS / DFS</b> start from the <u>first movie in Your picks</u> (or the browse list if picks are empty)."
-                + "</body></html>");
+        JPanel header = createHeader();
+        JPanel content = createMainContent();
 
-        JPanel leftHeader = new JPanel(new BorderLayout(0, 8));
-        leftHeader.add(headline, BorderLayout.NORTH);
-        leftHeader.add(sub, BorderLayout.CENTER);
+        mainPanel.add(header, BorderLayout.NORTH);
+        mainPanel.add(content, BorderLayout.CENTER);
 
-        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        filterRow.add(new JLabel("Search"));
-        filterField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Title or movie id…");
-        filterRow.add(filterField);
-        JButton applyFilter = new JButton("Apply");
-        applyFilter.addActionListener(e -> applyFilter());
-        filterRow.add(applyFilter);
-
-        JPanel listPanel = new JPanel(new BorderLayout(0, 6));
-        listPanel.setBorder(BorderFactory.createTitledBorder("Browse movies"));
-        listPanel.add(filterRow, BorderLayout.NORTH);
-        listPanel.add(new JScrollPane(movieList), BorderLayout.CENTER);
-
-        JPanel addRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        JButton addPicks = new JButton("Add to my picks");
-        addPicks.setToolTipText("Append the current browse selection to Your picks (skips duplicates).");
-        addPicks.addActionListener(e -> addSelectionToSeeds());
-        addRow.add(addPicks);
-
-        JPanel pickActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        JButton removePicks = new JButton("Remove selected");
-        removePicks.addActionListener(e -> removeSelectedSeeds());
-        JButton clearPicks = new JButton("Clear all");
-        clearPicks.addActionListener(e -> seedModel.clear());
-        pickActions.add(removePicks);
-        pickActions.add(clearPicks);
-
-        JPanel seedPanel = new JPanel(new BorderLayout(0, 4));
-        seedPanel.setBorder(BorderFactory.createTitledBorder("Your picks (seeds)"));
-        seedPanel.add(new JScrollPane(seedList), BorderLayout.CENTER);
-        seedPanel.add(pickActions, BorderLayout.SOUTH);
-
-        JPanel mid = new JPanel(new BorderLayout(0, 8));
-        mid.add(listPanel, BorderLayout.CENTER);
-        mid.add(addRow, BorderLayout.SOUTH);
-
-        JLabel hint = new JLabel("<html><small style='color:#555'>Searching only filters the browse list — it does not remove movies from Your picks.</small></html>");
-
-        JPanel leftColumn = new JPanel(new BorderLayout(0, 8));
-        leftColumn.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-        leftColumn.add(leftHeader, BorderLayout.NORTH);
-        JPanel stack = new JPanel(new BorderLayout(0, 6));
-        stack.add(mid, BorderLayout.CENTER);
-        stack.add(seedPanel, BorderLayout.SOUTH);
-        leftColumn.add(stack, BorderLayout.CENTER);
-        leftColumn.add(hint, BorderLayout.SOUTH);
-
-        output.setEditable(false);
-        output.setLineWrap(true);
-        output.setWrapStyleWord(true);
-        output.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-
-        JPanel outHeader = new JPanel(new BorderLayout());
-        outHeader.add(new JLabel("Output"), BorderLayout.WEST);
-
-        JPanel recRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        recRow.add(new JLabel("How many picks?"));
-        recRow.add(topKSpinner);
-        JButton recommend = new JButton("Get recommendations");
-        recommend.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_ROUND_RECT);
-        recommend.setToolTipText("Rank movies by shortest-path distance from all titles in Your picks.");
-        recommend.addActionListener(e -> runRecommendations());
-        recRow.add(recommend);
-
-        JPanel exploreRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        exploreRow.setBorder(BorderFactory.createTitledBorder("Graph traversal (class requirement)"));
-        JButton bfs = new JButton("Show BFS order");
-        bfs.setToolTipText("BFS from the first movie in Your picks, or first browse selection if picks are empty.");
-        bfs.addActionListener(e -> runBfs());
-        JButton dfs = new JButton("Show DFS order");
-        dfs.setToolTipText("DFS from the first movie in Your picks, or first browse selection if picks are empty.");
-        dfs.addActionListener(e -> runDfs());
-        exploreRow.add(bfs);
-        exploreRow.add(dfs);
-
-        JPanel actions = new JPanel(new BorderLayout(0, 6));
-        actions.add(recRow, BorderLayout.NORTH);
-        actions.add(exploreRow, BorderLayout.CENTER);
-
-        JButton reload = new JButton("Reload dataset & rebuild graph");
-        reload.setToolTipText("Rebuilds graph (delete cache first for a clean rebuild).");
-        reload.addActionListener(e -> reloadFromDisk());
-        JPanel reloadRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        reloadRow.add(reload);
-
-        JPanel right = new JPanel(new BorderLayout(0, 8));
-        right.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
-        right.add(outHeader, BorderLayout.NORTH);
-        right.add(new JScrollPane(output), BorderLayout.CENTER);
-        right.add(actions, BorderLayout.SOUTH);
-
-        JPanel rightWrap = new JPanel(new BorderLayout());
-        rightWrap.add(right, BorderLayout.CENTER);
-        rightWrap.add(reloadRow, BorderLayout.SOUTH);
-
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, rightWrap);
-        split.setResizeWeight(0.40);
-        split.setDividerSize(6);
-        split.setContinuousLayout(true);
-
-        JPanel root = new JPanel(new BorderLayout(12, 12));
-        root.setBorder(BorderFactory.createEmptyBorder(12, 14, 14, 14));
-        root.add(split, BorderLayout.CENTER);
-        setContentPane(root);
-
-        setPreferredSize(new Dimension(1100, 720));
+        setContentPane(mainPanel);
+        setPreferredSize(new Dimension(1200, 800));
         pack();
         setLocationRelativeTo(null);
 
@@ -205,13 +127,262 @@ public final class MovieRecommenderFrame extends JFrame {
         appendWelcome();
     }
 
+    private JPanel createHeader() {
+        JPanel header = new JPanel(new BorderLayout(20, 0));
+        header.setBackground(BG_CARD);
+        header.setBorder(new CompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
+            new EmptyBorder(15, 25, 15, 25)
+        ));
+
+        JLabel title = new JLabel("Movie Recommendation System");
+        title.setFont(FONT_TITLE);
+        title.setForeground(TEXT_PRIMARY);
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        searchPanel.setBackground(BG_CARD);
+        JLabel searchLabel = new JLabel("Search:");
+        searchLabel.setFont(FONT_BODY);
+        filterField.setPreferredSize(new Dimension(250, 30));
+        filterField.setFont(FONT_BODY);
+        filterField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Title or movie id...");
+        JButton applyBtn = createStyledButton("Apply", ACCENT_BLUE, true);
+        applyBtn.addActionListener(e -> applyFilter());
+        searchPanel.add(searchLabel);
+        searchPanel.add(filterField);
+        searchPanel.add(applyBtn);
+
+        header.add(title, BorderLayout.WEST);
+        header.add(searchPanel, BorderLayout.CENTER);
+
+        return header;
+    }
+
+    private JPanel createMainContent() {
+        JPanel content = new JPanel(new BorderLayout(0, 0));
+        content.setBackground(BG_PRIMARY);
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        split.setBackground(BG_PRIMARY);
+        split.setBorder(null);
+        split.setDividerSize(8);
+        split.setResizeWeight(0.45);
+
+        JPanel leftPanel = createLeftPanel();
+        JPanel rightPanel = createRightPanel();
+
+        split.setLeftComponent(leftPanel);
+        split.setRightComponent(rightPanel);
+
+        content.add(split, BorderLayout.CENTER);
+        content.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        return content;
+    }
+
+    private JPanel createLeftPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 15));
+        panel.setBackground(BG_PRIMARY);
+
+        JPanel instructionsCard = createCard();
+        instructionsCard.setLayout(new BorderLayout());
+        JLabel instructions = new JLabel("<html><body style='width:380px; padding:10px;'>"
+                + "<h3 style='color:#212529;'>How to Use:</h3>"
+                + "<p style='margin-top:8px;'><b>1.</b> Search and select movies from the browse list</p>"
+                + "<p><b>2.</b> Click 'Add to my picks' to build your selection</p>"
+                + "<p><b>3.</b> Use 'Remove selected' or 'Clear all' to manage picks</p>"
+                + "<p><b>4.</b> Click 'Get recommendations' for personalized suggestions</p>"
+                + "<p><b>5.</b> Use BFS/DFS to explore the movie graph</p>"
+                + "</body></html>");
+        instructions.setFont(FONT_BODY);
+        instructionsCard.add(instructions, BorderLayout.CENTER);
+
+        JPanel browseCard = createCard();
+        browseCard.setLayout(new BorderLayout(0, 10));
+
+        JLabel browseTitle = new JLabel("Browse Movies");
+        browseTitle.setFont(FONT_HEADING);
+        browseTitle.setForeground(TEXT_PRIMARY);
+        browseTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
+
+        JScrollPane movieScroll = new JScrollPane(movieList);
+        movieScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        movieScroll.setPreferredSize(new Dimension(0, 250));
+
+        JPanel addPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        addPanel.setBackground(BG_CARD);
+        JButton addButton = createStyledButton("Add to my picks", ACCENT_GREEN, true);
+        addButton.setToolTipText("Add selected movies to your picks list");
+        addButton.addActionListener(e -> addSelectionToSeeds());
+        addPanel.add(addButton);
+
+        browseCard.add(browseTitle, BorderLayout.NORTH);
+        browseCard.add(movieScroll, BorderLayout.CENTER);
+        browseCard.add(addPanel, BorderLayout.SOUTH);
+
+        JPanel picksCard = createCard();
+        picksCard.setLayout(new BorderLayout(0, 10));
+
+        JLabel picksTitle = new JLabel("Your Picks (Seeds)");
+        picksTitle.setFont(FONT_HEADING);
+        picksTitle.setForeground(TEXT_PRIMARY);
+        picksTitle.setBorder(new EmptyBorder(0, 0, 5, 0));
+
+        JScrollPane seedScroll = new JScrollPane(seedList);
+        seedScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        seedScroll.setPreferredSize(new Dimension(0, 120));
+
+        JPanel pickActions = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        pickActions.setBackground(BG_CARD);
+        JButton removeBtn = createStyledButton("Remove selected", new Color(220, 53, 69), false);
+        removeBtn.addActionListener(e -> removeSelectedSeeds());
+        JButton clearBtn = createStyledButton("Clear all", new Color(108, 117, 125), false);
+        clearBtn.addActionListener(e -> seedModel.clear());
+        pickActions.add(removeBtn);
+        pickActions.add(clearBtn);
+
+        picksCard.add(picksTitle, BorderLayout.NORTH);
+        picksCard.add(seedScroll, BorderLayout.CENTER);
+        picksCard.add(pickActions, BorderLayout.SOUTH);
+
+        panel.add(instructionsCard, BorderLayout.NORTH);
+        panel.add(browseCard, BorderLayout.CENTER);
+        panel.add(picksCard, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createRightPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 15));
+        panel.setBackground(BG_PRIMARY);
+
+        JPanel outputCard = createCard();
+        outputCard.setLayout(new BorderLayout(0, 10));
+
+        JLabel outputTitle = new JLabel("Output");
+        outputTitle.setFont(FONT_HEADING);
+        outputTitle.setForeground(TEXT_PRIMARY);
+
+        output.setEditable(false);
+        output.setLineWrap(true);
+        output.setWrapStyleWord(true);
+        output.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        output.setBackground(new Color(248, 249, 250));
+        output.setForeground(TEXT_PRIMARY);
+
+        JScrollPane outputScroll = new JScrollPane(output);
+        outputScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+
+        outputCard.add(outputTitle, BorderLayout.NORTH);
+        outputCard.add(outputScroll, BorderLayout.CENTER);
+
+        JPanel controlsCard = createCard();
+        controlsCard.setLayout(new BorderLayout(0, 10));
+
+        JPanel recommendPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        recommendPanel.setBackground(BG_CARD);
+        recommendPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            "Recommendations",
+            javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+            javax.swing.border.TitledBorder.DEFAULT_POSITION,
+            FONT_SUBHEADING,
+            TEXT_PRIMARY
+        ));
+
+        JLabel topKLabel = new JLabel("How many recommendations?");
+        topKLabel.setFont(FONT_BODY);
+        topKSpinner.setFont(FONT_BODY);
+        topKSpinner.setPreferredSize(new Dimension(60, 28));
+
+        JButton recommendBtn = createStyledButton("Get recommendations", ACCENT_BLUE, true);
+        recommendBtn.setToolTipText("Get movie recommendations based on your picks");
+        recommendBtn.addActionListener(e -> runRecommendations());
+        recommendBtn.putClientProperty(FlatClientProperties.BUTTON_TYPE, FlatClientProperties.BUTTON_TYPE_ROUND_RECT);
+
+        recommendPanel.add(topKLabel);
+        recommendPanel.add(topKSpinner);
+        recommendPanel.add(recommendBtn);
+
+        JPanel traversalPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        traversalPanel.setBackground(BG_CARD);
+        traversalPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR),
+            "Graph Traversal (Class Requirement)",
+            javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+            javax.swing.border.TitledBorder.DEFAULT_POSITION,
+            FONT_SUBHEADING,
+            TEXT_PRIMARY
+        ));
+
+        JButton bfsBtn = createStyledButton("Show BFS order", ACCENT_PURPLE, false);
+        bfsBtn.setToolTipText("Breadth-First Search from first pick or selection");
+        bfsBtn.addActionListener(e -> runBfs());
+
+        JButton dfsBtn = createStyledButton("Show DFS order", ACCENT_PURPLE, false);
+        dfsBtn.setToolTipText("Depth-First Search from first pick or selection");
+        dfsBtn.addActionListener(e -> runDfs());
+
+        traversalPanel.add(bfsBtn);
+        traversalPanel.add(dfsBtn);
+
+        JPanel reloadPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 5));
+        reloadPanel.setBackground(BG_CARD);
+        JButton reloadBtn = createStyledButton("Reload dataset & rebuild graph", new Color(108, 117, 125), false);
+        reloadBtn.setToolTipText("Reload the dataset and rebuild the similarity graph");
+        reloadBtn.addActionListener(e -> reloadFromDisk());
+        reloadPanel.add(reloadBtn);
+
+        controlsCard.add(recommendPanel, BorderLayout.NORTH);
+        controlsCard.add(traversalPanel, BorderLayout.CENTER);
+        controlsCard.add(reloadPanel, BorderLayout.SOUTH);
+
+        panel.add(outputCard, BorderLayout.CENTER);
+        panel.add(controlsCard, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createCard() {
+        JPanel card = new JPanel();
+        card.setBackground(BG_CARD);
+        card.setBorder(new CompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+            new EmptyBorder(15, 15, 15, 15)
+        ));
+        return card;
+    }
+
+    private JButton createStyledButton(String text, Color color, boolean filled) {
+        JButton button = new JButton(text);
+        button.setFont(FONT_BODY);
+        button.setFocusPainted(false);
+
+        if (filled) {
+            button.setBackground(color);
+            button.setForeground(Color.WHITE);
+            button.setBorderPainted(false);
+            button.setOpaque(true);
+        } else {
+            button.setBackground(BG_CARD);
+            button.setForeground(color);
+            button.setBorder(BorderFactory.createLineBorder(color, 1));
+        }
+
+        button.setPreferredSize(new Dimension(button.getPreferredSize().width + 20, 32));
+        return button;
+    }
+
     private void appendWelcome() {
-        String kind = service.isMovieLens20M() ? "MovieLens 20M (Kaggle / GroupLens)" : "small sample CSVs";
+        String kind = service.isMovieLens20M() ? "MovieLens 20M (Kaggle / GroupLens)" : "Small Sample Dataset";
         output.setText(
-                "Dataset: " + kind + "\n"
-                        + "Folder: " + service.dataDirectory().toAbsolutePath() + "\n"
-                        + "Config root: " + configDir.toAbsolutePath() + "\n\n"
-                        + "Add several movies to **Your picks** (they stay when you search again), then click **Get recommendations**.\n\n"
+                "═══════════════════════════════════════\n"
+                        + "  MOVIE RECOMMENDATION SYSTEM\n"
+                        + "═══════════════════════════════════════\n\n"
+                        + "Dataset: " + kind + "\n"
+                        + "Config: " + configDir.toAbsolutePath() + "\n\n"
+                        + "Ready to help you find your next favorite movie!\n"
+                        + "Start by searching and adding movies to your picks.\n\n"
         );
     }
 
