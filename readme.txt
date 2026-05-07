@@ -2,8 +2,9 @@ NETS 1500 - HW5 Final Project
 Graph-Based Movie Recommender (Java)
 
 Team:
-  Sahiti Dasari   sahitid@wharton.upenn.edu
-  Raghav Garimella   raghav07@seas.upenn.edu
+  Sahiti Dasari       sahitid@wharton.upenn.edu
+  Anoushka Nair       anoushkn@seas.upenn.edu
+  Raghav Garimella    raghav07@seas.upenn.edu
 
 Description
 -----------
@@ -29,14 +30,13 @@ Work breakdown
 Sahiti - graph data structure, similarity / edge-weighting logic (genre Jaccard
 and rating correlation), CSV loading, MovieLens 20M streaming and reservoir
 sampling, and graph cache serialization.
+Anoushka - recommendation algorithms: BFS, DFS, and multi-source Dijkstra
+ranking on the weighted similarity graph, plus result formatting and tie-
+breaking logic.
 Raghav - card-based Swing UI (search, multi-select Your Picks, output panel,
 graph visualization panel), integration with the service layer, and demo /
 screenshot preparation.
-Shared - BFS, DFS, and multi-source Dijkstra recommendation algorithm, plus
-debugging and testing.
-
-The third teammate listed in our Step 1 proposal (Anoushka) did not end up
-working on the project. The submission was completed by Sahiti and Raghav.
+All three contributed to debugging, testing, and final integration.
 
 AI/LLM usage
 ------------
@@ -56,9 +56,7 @@ dataset, similarity is built from genre overlap and rating correlation, and the
 core algorithms are BFS, DFS, and shortest-path ranking. Two notable additions
 beyond the proposal: an interactive graph visualization panel (Visualize Graph
 button) that shows seeds in green and their neighborhood in blue with pan/zoom,
-and a card-based UI redesign for clearer navigation. The third teammate listed
-in the Step 1 proposal did not participate; the project was completed by
-Sahiti and Raghav.
+and a card-based UI redesign for clearer navigation.
 
 How to run
 ----------
