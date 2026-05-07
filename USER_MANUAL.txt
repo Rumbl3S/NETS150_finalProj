@@ -1,43 +1,91 @@
-User manual — Graph Movie Recommender
-======================================
+User Manual - Graph Movie Recommender
+=====================================
 
 Purpose
 -------
-You pick movies you enjoy; the program suggests similar titles using a weighted graph of movies. On **MovieLens 20M**, edges use **genre overlap + rating correlation** (no cast in the core CSVs). On the small toy dataset, optional **movie_people.csv** adds cast and director. Recommendations use **multi-source Dijkstra** (shortest-path ranking). **BFS** and **DFS** show traversal order from one start movie.
+You pick movies you enjoy, and the program suggests similar titles using a
+weighted graph of movies. On the small toy dataset, edges combine genre overlap,
+cast/director from the optional movie_people.csv, and rating correlation. On
+MovieLens 20M, edges use genre overlap plus rating correlation only (the core
+GroupLens files do not include cast or director). Recommendations come from
+multi-source Dijkstra (shortest-path ranking), and BFS/DFS show traversal order
+from a chosen start movie.
 
 Requirements
 ------------
-Java 17 or newer. A graphical desktop (Swing + FlatLaf). At runtime **no network** is required once data files are local.
-
-Full MovieLens 20M (Kaggle)
----------------------------
-1. `python3 -m pip install -r scripts/requirements-movielens.txt` (use `-m pip` so packages install for the same `python3` that runs the script)
-2. `python3 scripts/download_movielens.py`  
-   This uses **kagglehub** to download **grouplens/movielens-20m-dataset** and copies `movies.csv` and `ratings.csv` into `data/movielens-20m/`.
-3. Start the app from the project root. By default only **one million rating lines** are used (faster). The first run **streams ratings** then **builds the sparse graph**; a loading window shows progress. Later runs reuse `data/movielens-20m/cache/graph_cache.ser`. For the full ~20M ratings file use `-Dmovielens.ratingLines=0` when launching Java, and `MOVIELENS_RATINGS_MAX_LINES=0` when running the download script.
-
-Alternatively set **MOVIELENS_20M_DIR** to an absolute path that already contains `movies.csv` and `ratings.csv`.
+- Java 17 or newer
+- A graphical desktop environment (Swing + FlatLaf)
+- Maven (only if running with `mvn compile exec:java`)
+- No network access is required at runtime once the data files are local.
 
 How to start the program
--------------------------
-1. `cd` to the project root (folder with `pom.xml`, `data/`, `run.sh`).
-2. `./run.sh`  or  `mvn compile exec:java`
-3. Optional argument: config directory (default `data`). The app prefers `data/movielens-20m/` when present.
+------------------------
+1. cd into the project root (the folder containing pom.xml, data/, and run.sh).
+2. Run either:
+     ./run.sh
+   or
+     mvn compile exec:java
+3. An optional first argument sets the config directory (default is "data").
+   The app prefers data/movielens-20m/ if present, otherwise it falls back to
+   the bundled toy CSVs in data/.
 
-Main window (updated layout)
-----------------------------
-• **Left — Movie list:** search by title or id, **Apply**, then Ctrl/Cmd-click several movies you like.  
-• **Right — Output:** scrollable log of recommendations and traversals.  
-• **Get recommendations:** Top K (1–100) ranked by shortest-path distance (lower = closer in the graph).  
-• **Show BFS order / Show DFS order:** use the **first** selected movie as the start node (up to 50 steps).  
-• **Reload dataset & rebuild graph:** ignores cache; slow on MovieLens 20M.
+Main window
+-----------
+The app uses a two-pane layout:
 
-Small toy dataset (optional)
-----------------------------
-If `data/movielens-20m/` is absent, the app uses `data/movies.csv`, `data/ratings.csv`, and optional `data/movie_people.csv`, with cache at `data/cache/graph_cache.ser`.
+- Left pane (Browse movies): type a title or movie id in the search box and
+  click Apply. Select one or more rows in the list and click "Add to my picks"
+  to seed the recommender. "Your picks (seeds)" stays put even when you change
+  the search filter, and you can remove individual picks or clear them all.
+
+- Right pane (Output): a scrollable log that shows the current dataset folder,
+  the recommendation results, and BFS/DFS output.
+
+- Get recommendations: ranks the top K movies (1-100) by shortest-path distance
+  from your picks. Lower distance means closer in the graph.
+
+- Show BFS order / Show DFS order: traverse the graph starting from the first
+  movie in "Your picks" (or the first browse selection if your picks are
+  empty). Output is capped at 50 nodes.
+
+- Reload dataset & rebuild graph: ignores any cached graph and rebuilds from
+  scratch. This is slow on MovieLens 20M and is mainly useful after changing
+  data files or tuning thresholds.
+
+Screenshots
+-----------
+The submission includes four screenshots taken from a real run:
+  screenshot1-launch.png            - main window on launch
+  screenshot2-recommendations.png   - picks + ranked recommendation list
+  screenshot3-bfs.png               - BFS visit order from Toy Story
+  screenshot4-dfs.png               - DFS preorder from Toy Story
+
+Using the full MovieLens 20M dataset (optional)
+-----------------------------------------------
+1. Install Python deps:
+     python3 -m pip install -r scripts/requirements-movielens.txt
+2. Download the dataset (uses kagglehub to fetch grouplens/movielens-20m-dataset):
+     python3 scripts/download_movielens.py
+   This writes movies.csv and ratings.csv into data/movielens-20m/.
+3. Start the app. By default the Java side caps reading at 1,000,000 rating
+   rows for speed; set -Dmovielens.ratingLines=0 to read the entire file. The
+   first run streams ratings, builds the sparse graph, and writes a cache file
+   under data/movielens-20m/cache/graph_cache.ser. Later runs reuse that cache.
+
+You can also point the app at any prepared folder by setting the environment
+variable MOVIELENS_20M_DIR to an absolute path containing movies.csv and
+ratings.csv.
+
+Toy dataset (default for grading)
+---------------------------------
+If data/movielens-20m/ is absent, the app loads data/movies.csv, data/ratings.csv,
+and the optional data/movie_people.csv. The cache lives at data/cache/graph_cache.ser.
 
 Troubleshooting
 ---------------
-• **Kaggle / kagglehub errors:** configure Kaggle credentials as required by your environment.  
-• **OutOfMemory:** increase heap (`java -Xmx4g …`) or lower the per-movie rating cap in `RatingsReservoir` / neighbor counts in `SparseMovieGraphBuilder`.  
-• **No recommendations:** try different seeds or delete the cache file and reload after tuning thresholds.
+- Kaggle / kagglehub errors: configure your Kaggle credentials per the kagglehub
+  documentation.
+- OutOfMemoryError: increase the heap (java -Xmx4g ...) or lower the per-movie
+  rating cap in RatingsReservoir / the neighbor count in SparseMovieGraphBuilder.
+- No recommendations returned: try different seeds, or delete the cache file
+  (graph_cache.ser) and reload after adjusting similarity thresholds.

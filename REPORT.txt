@@ -1,27 +1,59 @@
-Short report — graph model, algorithms, example outputs
-=========================================================
+Short report - graph model, algorithms, and example outputs
+===========================================================
 
 Graph model
 -----------
-Nodes are movies (integer ids aligned with the MovieLens-style `movies.csv`). Undirected weighted edges use weight (1 − similarity), so more similar neighbors yield shorter Dijkstra paths.
+Nodes are movies, identified by integer ids that match the MovieLens movies.csv
+file. The graph is undirected and weighted, with weight = 1 - similarity, so
+more similar movies have shorter Dijkstra distances.
 
-**Toy / enriched CSVs:** Similarity can blend genre Jaccard, actor Jaccard and director match (from optional `movie_people.csv`), plus Pearson correlation on users who rated both films (minimum overlap threshold).
+For the bundled toy CSVs, similarity blends three signals: genre Jaccard, actor
+Jaccard and director match (from the optional movie_people.csv), and Pearson
+correlation on users who rated both films (subject to a minimum overlap
+threshold).
 
-**MovieLens 20M at full scale:** Cast and director are not in the core GroupLens files, so we use **genre Jaccard plus rating correlation** only (fixed blend). Ratings are **streamed** from `ratings.csv`; each movie keeps a **bounded random sample** of (user, rating) pairs for correlation so the full ~20M rows never load into memory. The graph is **sparse**: each movie considers genre neighbors, refines with a two-stage score, and keeps only the strongest **top edges per movie**, merging parallel suggestions with the **minimum** edge weight so Dijkstra sees the best link between two movies.
+For the full MovieLens 20M release, cast and director are not in the GroupLens
+core files, so similarity uses genre Jaccard plus rating correlation only.
+Ratings are streamed from ratings.csv rather than loaded into memory, and each
+movie keeps a bounded reservoir sample of (user, rating) pairs for the
+correlation computation. The graph is sparse: each movie keeps only its top-N
+strongest neighbors, and parallel edges between the same pair of movies are
+merged using the minimum weight so Dijkstra always sees the best available link.
 
 Algorithms
 ----------
-• Breadth-first search (BFS) and depth-first search (DFS) traverse the adjacency list in deterministic ascending neighbor id order; they ignore edge weights and illustrate classic exploration from a start movie (cap raised to 50 nodes in the UI for large graphs).
-• Recommendations use multi-source Dijkstra: every selected “liked” movie is a source with initial distance zero; the algorithm relaxes edges in best-first order until shortest-path distances are known. Movies are ranked by increasing distance from the seed set (excluding the seeds themselves).
+- BFS and DFS traverse the adjacency list in deterministic ascending neighbor-id
+  order. They ignore edge weights and illustrate classic graph exploration from
+  a chosen start movie. The UI caps the printed traversal at 50 nodes for
+  readability on the larger graph.
 
-Example outputs
----------------
-Seeding with “Toy Story (1995)”, “Jumanji (1995)”, and “Grumpier Old Men (1995)” produces top recommendations including “Sabrina (1995)” (distance 0.525), “Tom and Huck (1995)” (0.610), and “American President, The (1995)” (0.642) — all 1995 family/comedy-adjacent titles that share genre overlap and rating correlation with the seed set.
+- Recommendations use multi-source Dijkstra. Every movie in "Your picks" is a
+  source with initial distance zero, and the algorithm relaxes edges in
+  best-first order until shortest-path distances from the seed set are known.
+  Movies are then ranked by increasing distance, with the seeds themselves
+  excluded from the output.
 
-Running BFS from “Toy Story (1995)” visits Toy Story first, then expands through adjacent neighbors: Jumanji, Tom and Huck, GoldenEye, Dracula: Dead and Loving It, Balto, Powder — reflecting the ring-by-ring structure of the similarity graph.
+Example outputs (from the included screenshots)
+-----------------------------------------------
+Seeding with "Toy Story (1995)", "Jumanji (1995)", and "Grumpier Old Men (1995)"
+produced top recommendations of "Sabrina (1995)" (distance 0.525), "Tom and
+Huck (1995)" (0.610), and "American President, The (1995)" (0.642). All three
+are 1995 family / comedy-adjacent titles that share genre overlap and rating
+correlation with the seed set, which matches the intuition that the graph is
+clustering similar movies close to one another.
 
-Running DFS from “Toy Story (1995)” follows one branch of the graph in preorder — Jumanji, Tom and Huck, GoldenEye, Heat, Sudden Death — before backtracking, producing a noticeably different visit order than BFS despite the same start node.
+Running BFS from "Toy Story (1995)" visited Toy Story first and then expanded
+through its immediate neighbors: Jumanji, Tom and Huck, GoldenEye, Dracula:
+Dead and Loving It, Balto, and Powder. The output reflects the ring-by-ring
+behavior of BFS on the similarity graph.
+
+Running DFS from the same start node followed one branch in preorder
+(Jumanji, Tom and Huck, GoldenEye, Heat, Sudden Death) before backtracking,
+producing a noticeably different visit order than BFS even though the start
+node was identical.
 
 Dataset note
 ------------
-Use `scripts/download_movielens.py` for the full **MovieLens 20M** Kaggle mirror, or the small toy CSVs under `data/`; see DATASET_SOURCE.txt for links and folder layout.
+Run scripts/download_movielens.py for the full MovieLens 20M Kaggle mirror, or
+use the small bundled CSVs under data/. See DATASET_SOURCE.txt for links and
+the expected folder layout.
