@@ -7,18 +7,19 @@ Team:
 
 Description
 -----------
-This is a Java application that recommends movies using a weighted similarity graph.
-Each node is a movie, and edges connect movies that are similar based on genre
-overlap (Jaccard) and Pearson correlation on shared user ratings. Edge weight is
-1 minus similarity, so more similar movies are closer in the graph. The user picks
-one or more movies they like through a Swing UI, and the app runs multi-source
-Dijkstra from those seeds to rank the remaining movies by shortest-path distance.
-The UI also displays BFS and DFS traversal orders from a chosen start movie. The
-project uses the MovieLens dataset, with a small bundled CSV sample for fast
-grading and a download script for the full MovieLens 20M release.
+This is a Java application that recommends movies using a weighted similarity
+graph. Each node is a movie, and edges connect movies that are similar based on
+genre overlap (Jaccard) and Pearson correlation on shared user ratings. Edge
+weight is 1 minus similarity, so more similar movies are closer in the graph.
+The user picks one or more movies they like through a Swing UI and the app
+runs multi-source Dijkstra from those seeds to rank the remaining movies by
+shortest-path distance, while also exposing BFS, DFS, and an interactive graph
+visualization. The project uses the full MovieLens 20M dataset from Kaggle /
+GroupLens and reads ~20 million ratings via streaming with a per-movie reservoir
+sample so the program runs comfortably in memory.
 
-Category from the homework list
--------------------------------
+Categories from the homework list
+---------------------------------
 Graph and graph algorithms (BFS, DFS, and multi-source Dijkstra on a weighted
 similarity graph). The project also relates to the "recommendations" advanced
 topic from the class list.
@@ -26,11 +27,13 @@ topic from the class list.
 Work breakdown
 --------------
 Sahiti - graph data structure, similarity / edge-weighting logic (genre Jaccard
-plus rating correlation), CSV loading, and graph cache serialization.
-Raghav - Java Swing UI (search, multi-select "Your picks", output panel),
-integration with the service layer, and demo / screenshot preparation.
-Shared - BFS, DFS, and the multi-source Dijkstra recommendation algorithm,
-plus debugging and testing.
+and rating correlation), CSV loading, MovieLens 20M streaming and reservoir
+sampling, and graph cache serialization.
+Raghav - card-based Swing UI (search, multi-select Your Picks, output panel,
+graph visualization panel), integration with the service layer, and demo /
+screenshot preparation.
+Shared - BFS, DFS, and multi-source Dijkstra recommendation algorithm, plus
+debugging and testing.
 
 The third teammate listed in our Step 1 proposal (Anoushka) did not end up
 working on the project. The submission was completed by Sahiti and Raghav.
@@ -38,23 +41,29 @@ working on the project. The submission was completed by Sahiti and Raghav.
 AI/LLM usage
 ------------
 We used Claude Code (Anthropic) to scaffold the Maven project layout and
-generate initial Java class skeletons for the graph, similarity metrics, BFS/DFS
-traversals, Dijkstra recommender, CSV loader, graph cache, and Swing UI. We
-also used it to help draft the documentation files. The team made all design
-decisions (graph schema, similarity weighting, choice of algorithms, UI layout)
-and reviewed and edited all generated code before integrating it.
+generate initial Java class skeletons for the graph, similarity metrics,
+BFS/DFS traversals, the Dijkstra recommender, the CSV loader, the graph cache,
+and the Swing UI. We also used it to help draft the documentation files. The
+team made all design decisions (graph schema, similarity weighting, choice of
+algorithms, MovieLens 20M streaming approach, UI layout) and reviewed and
+edited all generated code before integrating it. The interactive graph
+visualization panel and the card-based UI redesign were directed by us.
 
 Changes from proposal
 ---------------------
-The demo runs on the small bundled CSV sample (data/movies.csv, data/ratings.csv,
-data/movie_people.csv) rather than the full MovieLens 20M download, so the app
-starts quickly for grading. The full MovieLens 20M dataset is fully supported
-through scripts/download_movielens.py - see USER_MANUAL.txt and DATASET_SOURCE.txt
-for setup instructions.
+The implementation matches the proposal: MovieLens (Kaggle / GroupLens) is the
+dataset, similarity is built from genre overlap and rating correlation, and the
+core algorithms are BFS, DFS, and shortest-path ranking. Two notable additions
+beyond the proposal: an interactive graph visualization panel (Visualize Graph
+button) that shows seeds in green and their neighborhood in blue with pan/zoom,
+and a card-based UI redesign for clearer navigation. The third teammate listed
+in the Step 1 proposal did not participate; the project was completed by
+Sahiti and Raghav.
 
 How to run
 ----------
 Requires Java 17+ and Maven. From the project root:
   mvn compile exec:java
-Or run the provided ./run.sh script. See USER_MANUAL.txt for the full setup,
-controls, and screenshots (screenshot1-launch.png through screenshot4-dfs.png).
+Or run the provided ./run.sh script. See USER_MANUAL.txt for the full setup
+(including how to download MovieLens 20M from Kaggle) and screenshots
+(launch.png, recommendation.png, bfs.png, dfs.png, visualize.png).

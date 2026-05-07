@@ -4,18 +4,18 @@ User Manual - Graph Movie Recommender
 Purpose
 -------
 You pick movies you enjoy, and the program suggests similar titles using a
-weighted graph of movies. On the small toy dataset, edges combine genre overlap,
-cast/director from the optional movie_people.csv, and rating correlation. On
-MovieLens 20M, edges use genre overlap plus rating correlation only (the core
-GroupLens files do not include cast or director). Recommendations come from
-multi-source Dijkstra (shortest-path ranking), and BFS/DFS show traversal order
-from a chosen start movie.
+weighted graph of movies. Edges combine genre overlap and Pearson correlation
+on shared user ratings (with optional cast and director similarity in toy
+mode). Recommendations come from multi-source Dijkstra (shortest-path
+ranking), BFS and DFS show traversal order from a chosen start movie, and the
+Visualize Graph button opens an interactive panel that draws the picks and
+their neighborhood.
 
 Requirements
 ------------
 - Java 17 or newer
+- Maven (only needed if running with `mvn compile exec:java`)
 - A graphical desktop environment (Swing + FlatLaf)
-- Maven (only if running with `mvn compile exec:java`)
 - No network access is required at runtime once the data files are local.
 
 How to start the program
@@ -31,37 +31,48 @@ How to start the program
 
 Main window
 -----------
-The app uses a two-pane layout:
+The app uses a card-based layout (see launch.png):
 
-- Left pane (Browse movies): type a title or movie id in the search box and
-  click Apply. Select one or more rows in the list and click "Add to my picks"
-  to seed the recommender. "Your picks (seeds)" stays put even when you change
-  the search filter, and you can remove individual picks or clear them all.
+- "How to Use" card: a quick five-step reminder of how to drive the UI.
 
-- Right pane (Output): a scrollable log that shows the current dataset folder,
-  the recommendation results, and BFS/DFS output.
+- "Browse Movies" card: type a title or movie id in the search box and click
+  Search. Select one or more rows in the list and click "Add to my picks" to
+  seed the recommender.
 
-- Get recommendations: ranks the top K movies (1-100) by shortest-path distance
-  from your picks. Lower distance means closer in the graph.
+- "Your Picks (Seeds)" card: stays put even when you change the search filter.
+  Use "Remove selected" or "Clear all" to manage the seed set.
 
-- Show BFS order / Show DFS order: traverse the graph starting from the first
-  movie in "Your picks" (or the first browse selection if your picks are
-  empty). Output is capped at 50 nodes.
+- "Output" card (right side): a scrollable log that shows the active dataset,
+  recommendation results, BFS/DFS output, and any status messages.
 
-- Reload dataset & rebuild graph: ignores any cached graph and rebuilds from
+- "Recommendations" card: choose how many recommendations to return (1-100)
+  and click "Get recommendations". Results are ranked by shortest-path
+  distance; lower distance means closer in the graph.
+
+- "Graph Traversal (Class Requirement)" card: three buttons.
+    Show BFS order   - BFS from the first movie in Your Picks.
+    Show DFS order   - DFS from the first movie in Your Picks.
+    Visualize Graph  - opens an interactive Swing window with the picks drawn
+                       in green and their immediate neighbors in blue. Drag
+                       to pan, scroll to zoom.
+
+- "Reload dataset & rebuild graph": ignores any cached graph and rebuilds from
   scratch. This is slow on MovieLens 20M and is mainly useful after changing
   data files or tuning thresholds.
 
 Screenshots
 -----------
-The submission includes four screenshots taken from a real run:
-  screenshot1-launch.png            - main window on launch
-  screenshot2-recommendations.png   - picks + ranked recommendation list
-  screenshot3-bfs.png               - BFS visit order from Toy Story
-  screenshot4-dfs.png               - DFS preorder from Toy Story
+The submission includes five screenshots from a real run on MovieLens 20M:
+  launch.png          - main window on launch with the dataset banner.
+  recommendation.png  - three picks (Shawshank Redemption, Forrest Gump, Long
+                        Kiss Goodnight) and the top-15 ranked recommendations.
+  bfs.png             - BFS visit order starting from Shawshank Redemption.
+  dfs.png             - DFS preorder from the same start node.
+  visualize.png       - interactive graph visualization with green seeds and
+                        blue neighbors.
 
-Using the full MovieLens 20M dataset (optional)
------------------------------------------------
+Using the full MovieLens 20M dataset
+------------------------------------
 1. Install Python deps:
      python3 -m pip install -r scripts/requirements-movielens.txt
 2. Download the dataset (uses kagglehub to fetch grouplens/movielens-20m-dataset):
@@ -76,16 +87,18 @@ You can also point the app at any prepared folder by setting the environment
 variable MOVIELENS_20M_DIR to an absolute path containing movies.csv and
 ratings.csv.
 
-Toy dataset (default for grading)
----------------------------------
-If data/movielens-20m/ is absent, the app loads data/movies.csv, data/ratings.csv,
-and the optional data/movie_people.csv. The cache lives at data/cache/graph_cache.ser.
+Toy dataset (fallback)
+----------------------
+If data/movielens-20m/ is absent, the app loads data/movies.csv,
+data/ratings.csv, and the optional data/movie_people.csv. The cache lives at
+data/cache/graph_cache.ser.
 
 Troubleshooting
 ---------------
-- Kaggle / kagglehub errors: configure your Kaggle credentials per the kagglehub
-  documentation.
+- Kaggle / kagglehub errors: configure your Kaggle credentials per the
+  kagglehub documentation.
 - OutOfMemoryError: increase the heap (java -Xmx4g ...) or lower the per-movie
-  rating cap in RatingsReservoir / the neighbor count in SparseMovieGraphBuilder.
+  rating cap in RatingsReservoir / the neighbor count in
+  SparseMovieGraphBuilder.
 - No recommendations returned: try different seeds, or delete the cache file
   (graph_cache.ser) and reload after adjusting similarity thresholds.
